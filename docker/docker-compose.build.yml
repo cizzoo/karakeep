@@ -11,6 +11,7 @@ services:
       MEILI_ADDR: http://meilisearch:7700
       BROWSER_WEB_URL: http://chrome:9222
       DATA_DIR: /data
+    image: ghcr.io/cizzoo/karakeep-web:latest
   chrome:
     image: gcr.io/zenika-hub/alpine-chrome:124
     restart: unless-stopped
