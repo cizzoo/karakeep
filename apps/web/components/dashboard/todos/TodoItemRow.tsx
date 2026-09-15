@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/sonner";
 import { useTranslation } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,8 @@ import {
   useEditTodoItem,
 } from "@karakeep/shared-react/hooks/todoLists";
 import { ZTodoItem } from "@karakeep/shared/types/todos";
+
+import { EditTodoItemDialog } from "./EditTodoItemDialog";
 
 export default function TodoItemRow({
   item,
@@ -28,9 +30,7 @@ export default function TodoItemRow({
   onMoveDown: () => void;
 }) {
   const { t } = useTranslation();
-  const [isEditing, setIsEditing] = useState(false);
-  const [editValue, setEditValue] = useState(item.text);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [editOpen, setEditOpen] = useState(false);
 
   const { mutate: editTodoItem } = useEditTodoItem({
     onError: () => {
@@ -53,21 +53,6 @@ export default function TodoItemRow({
     },
   });
 
-  const startEditing = () => {
-    setEditValue(item.text);
-    setIsEditing(true);
-    requestAnimationFrame(() => inputRef.current?.focus());
-  };
-
-  const commitEdit = () => {
-    setIsEditing(false);
-    const trimmed = editValue.trim();
-    if (trimmed.length === 0 || trimmed === item.text) {
-      return;
-    }
-    editTodoItem({ todoItemId: item.id, text: trimmed });
-  };
-
   return (
     <div className="flex items-center gap-2 rounded-md border bg-background p-2">
       <input
@@ -78,33 +63,33 @@ export default function TodoItemRow({
         }
         className="size-4 shrink-0 cursor-pointer accent-primary"
       />
-      {isEditing ? (
-        <Input
-          ref={inputRef}
-          value={editValue}
-          onChange={(e) => setEditValue(e.target.value)}
-          onBlur={commitEdit}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              commitEdit();
-            } else if (e.key === "Escape") {
-              setIsEditing(false);
-            }
-          }}
-          className="h-8 grow"
-        />
-      ) : (
-        <button
-          type="button"
-          onClick={startEditing}
+      <button
+        type="button"
+        onClick={() => setEditOpen(true)}
+        className="flex min-w-0 grow flex-wrap items-center gap-1.5 text-left"
+      >
+        <span
           className={cn(
-            "grow truncate text-left text-sm",
+            "truncate text-sm",
             item.done && "text-muted-foreground line-through",
           )}
         >
           {item.text}
-        </button>
-      )}
+        </span>
+        {item.tags.length > 0 && (
+          <span className="flex flex-wrap gap-1">
+            {item.tags.map((tag) => (
+              <Badge
+                key={tag.id}
+                variant="secondary"
+                className="text-nowrap px-1.5 py-0 text-[10px] font-light"
+              >
+                {tag.name}
+              </Badge>
+            ))}
+          </span>
+        )}
+      </button>
       <div className="flex shrink-0 items-center gap-1">
         <Button
           variant="ghost"
@@ -134,6 +119,11 @@ export default function TodoItemRow({
           <Trash2 className="size-4" />
         </Button>
       </div>
+      <EditTodoItemDialog
+        open={editOpen}
+        setOpen={setEditOpen}
+        todoItem={item}
+      />
     </div>
   );
 }

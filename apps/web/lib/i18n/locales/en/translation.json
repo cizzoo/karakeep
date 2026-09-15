@@ -97,6 +97,7 @@
     "confirm": "Confirm",
     "open_editor": "Open Editor",
     "create": "Create",
+    "done": "Done",
     "fetch_now": "Fetch Now",
     "summarize_with_ai": "Summarize with AI",
     "edit_title": "Edit Title",
@@ -878,6 +879,9 @@
     "all_todo_lists": "All Todos",
     "new_todo_list": "New Todo List",
     "edit_todo_list": "Edit Todo List",
+    "new_todo_item": "New Item",
+    "edit_todo_item": "Edit Item",
+    "list_label": "List",
     "delete_todo_list": {
       "title": "Delete Todo List",
       "description": "Deleting a todo list also deletes all of its items. This can't be undone."
@@ -888,10 +892,18 @@
     "no_todo_lists_description": "Create a todo list to start keeping track of things to do.",
     "no_items": "No items yet. Add one below.",
     "add_item_placeholder": "Add a new item...",
-    "add_item": "Add",
+    "add_item": "Add Item",
     "summary_list_one": "{{count}} todo list",
     "summary_list_other": "{{count}} todo lists",
-    "items_done": "{{done}}/{{total}} done"
+    "items_done": "{{done}}/{{total}} done",
+    "linked_bookmarks": "Linked Bookmarks",
+    "no_linked_bookmarks": "No bookmarks linked yet. Link one below.",
+    "link_bookmark": "Link Bookmark",
+    "unlink_bookmark": "Unlink bookmark",
+    "search_bookmarks_placeholder": "Search your bookmarks...",
+    "no_bookmarks_found": "No bookmarks found.",
+    "untitled_bookmark": "Untitled",
+    "bookmark_not_found": "Bookmark not found"
   },
   "tags": {
     "all_tags": "All Tags",
@@ -1082,7 +1094,11 @@
       "updated": "Todo list has been updated!",
       "deleted": "Todo list has been deleted!",
       "item_added": "Item has been added!",
-      "item_deleted": "Item has been deleted!"
+      "item_updated": "Item has been updated!",
+      "item_deleted": "Item has been deleted!",
+      "tags_updated": "Tags have been updated!",
+      "bookmark_linked": "Bookmark has been linked!",
+      "bookmark_unlinked": "Bookmark has been unlinked!"
     }
   },
   "banners": {

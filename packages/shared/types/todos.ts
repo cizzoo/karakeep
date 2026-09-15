@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+import { zBookmarkSchema } from "./bookmarks";
+import { zTagBasicSchema } from "./tags";
+
 export const MAX_TODO_LIST_NAME_LENGTH = 100;
 export const MAX_TODO_ITEM_TEXT_LENGTH = 2000;
 
@@ -21,6 +24,9 @@ export const zTodoListSchema = z.object({
   createdAt: z.date(),
   itemsCount: z.number(),
   doneCount: z.number(),
+  // Todo lists share bookmarks' tag pool (`bookmarkTags`) - there is no
+  // separate "todo tags" concept.
+  tags: z.array(zTagBasicSchema),
 });
 
 export type ZTodoList = z.infer<typeof zTodoListSchema>;
@@ -45,6 +51,9 @@ export const zTodoItemSchema = z.object({
   done: z.boolean(),
   position: z.number(),
   createdAt: z.date(),
+  // Todo items share the same tag pool todo lists/bookmarks use
+  // (`bookmarkTags`) - there is no separate "todo item tags" concept.
+  tags: z.array(zTagBasicSchema),
 });
 
 export type ZTodoItem = z.infer<typeof zTodoItemSchema>;
@@ -76,4 +85,77 @@ export const zEditTodoItemSchema = z.object({
 export const zReorderTodoItemsSchema = z.object({
   todoListId: z.string(),
   orderedItemIds: z.array(z.string()).min(1),
+});
+
+// Tags on todo lists reuse the user's shared bookmark tag pool, so tags are
+// referenced the same way bookmarks reference them: by an existing tag's id,
+// or by name (creating the tag if it doesn't exist yet).
+export const zManipulateTodoListTagSchema = z
+  .object({
+    tagId: z.string().optional(),
+    tagName: z.string().optional(),
+  })
+  .refine((val) => !!val.tagId || !!val.tagName, {
+    message: "You must provide either a tagId or a tagName",
+    path: ["tagId", "tagName"],
+  });
+
+export const zUpdateTodoListTagsSchema = z.object({
+  todoListId: z.string(),
+  attach: z.array(zManipulateTodoListTagSchema),
+  detach: z.array(zManipulateTodoListTagSchema),
+});
+
+// Tags on todo items reuse the exact same shared bookmark-tag identifier
+// shape as todo lists (`zManipulateTodoListTagSchema` is generic enough - by
+// tagId or tagName - to reuse directly rather than defining an identical
+// "todo item" variant).
+export const zUpdateTodoItemTagsSchema = z.object({
+  todoItemId: z.string(),
+  attach: z.array(zManipulateTodoListTagSchema),
+  detach: z.array(zManipulateTodoListTagSchema),
+});
+
+// Bookmarks linked to a todo list (forward direction only: a todo list knows
+// which bookmarks it links to; a bookmark's own page doesn't yet show which
+// todo lists reference it back). A linked bookmark is a real bookmark, so
+// this reuses bookmarks' own `zBookmarkSchema` rather than inventing a
+// separate "compact bookmark" shape just for todo lists.
+export const zTodoListLinkedBookmarksSchema = z.object({
+  bookmarks: z.array(zBookmarkSchema),
+});
+export type ZTodoListLinkedBookmarks = z.infer<
+  typeof zTodoListLinkedBookmarksSchema
+>;
+
+export const zAttachBookmarkToTodoListSchema = z.object({
+  todoListId: z.string(),
+  bookmarkId: z.string(),
+});
+
+export const zDetachBookmarkFromTodoListSchema = z.object({
+  todoListId: z.string(),
+  bookmarkId: z.string(),
+});
+
+// Bookmarks linked to a todo item - the exact same shape as todo-list-level
+// linked bookmarks (forward direction only: an item knows which bookmarks
+// it links to; a bookmark's own page doesn't yet show which todo items
+// reference it back), one level down. Reuses the same `zBookmarkSchema`
+// bookmarks and todo-list linked bookmarks use.
+export const zTodoItemLinkedBookmarksSchema = z.object({
+  bookmarks: z.array(zBookmarkSchema),
+});
+export type ZTodoItemLinkedBookmarks = z.infer<
+  typeof zTodoItemLinkedBookmarksSchema
+>;
+
+export const zAttachBookmarkToTodoItemSchema = z.object({
+  todoItemId: z.string(),
+  bookmarkId: z.string(),
+});
+
+export const zDetachBookmarkFromTodoItemSchema = z.object({
+  todoItemId: z.string(),
+  bookmarkId: z.string(),
 });

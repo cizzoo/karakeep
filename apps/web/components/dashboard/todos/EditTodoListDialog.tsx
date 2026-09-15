@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActionButton } from "@/components/ui/action-button";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,6 +32,8 @@ import {
 } from "@karakeep/shared-react/hooks/todoLists";
 import { zNewTodoListSchema, ZTodoList } from "@karakeep/shared/types/todos";
 
+import { TodoListTagsEditor } from "./TodoListTagsEditor";
+
 export function EditTodoListDialog({
   open: userOpen,
   setOpen: userSetOpen,
@@ -58,12 +60,26 @@ export function EditTodoListDialog({
     },
   });
 
+  // Only reset the form on a real open/entity transition (dialog going from
+  // closed to open, or being handed a different list to edit) - not on every
+  // re-render that hands `todoList` a new object reference while the dialog
+  // stays open (e.g. a tag mutation inside this same dialog invalidating the
+  // query), which would otherwise silently discard in-progress edits.
+  const prevOpenRef = useRef(false);
+  const prevListIdRef = useRef<string | undefined>(undefined);
   useEffect(() => {
-    form.reset({
-      name: todoList?.name ?? "",
-      icon: todoList?.icon ?? "📋",
-    });
-  }, [open, todoList, form]);
+    const openedNow = open && !prevOpenRef.current;
+    const listChanged = open && todoList?.id !== prevListIdRef.current;
+    if (openedNow || listChanged) {
+      form.reset({
+        name: todoList?.name ?? "",
+        icon: todoList?.icon ?? "📋",
+      });
+    }
+    prevOpenRef.current = open;
+    prevListIdRef.current = todoList?.id;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, todoList]);
 
   const { mutate: createTodoList, isPending: isCreating } = useCreateTodoList({
     onSuccess: () => {
@@ -157,6 +173,15 @@ export function EditTodoListDialog({
                 )}
               />
             </div>
+            {isEdit && (
+              <FormItem>
+                <FormLabel>{t("common.tags")}</FormLabel>
+                <FormControl>
+                  <TodoListTagsEditor todoList={todoList} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
             <DialogFooter className="sm:justify-end">
               <DialogClose asChild>
                 <Button type="button" variant="secondary">

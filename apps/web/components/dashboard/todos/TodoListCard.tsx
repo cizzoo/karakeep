@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
@@ -76,6 +77,19 @@ export default function TodoListCard({ todoList }: { todoList: ZTodoList }) {
             total: todoList.itemsCount,
           })}
         </p>
+        {todoList.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {todoList.tags.map((tag) => (
+              <Badge
+                key={tag.id}
+                variant="secondary"
+                className="text-nowrap font-light"
+              >
+                {tag.name}
+              </Badge>
+            ))}
+          </div>
+        )}
       </CardContent>
       <EditTodoListDialog
         open={editOpen}

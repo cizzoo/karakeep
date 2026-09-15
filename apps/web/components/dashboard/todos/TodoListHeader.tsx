@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/lib/i18n/client";
 import { Pencil, Trash2 } from "lucide-react";
 
-import { useTodoLists } from "@karakeep/shared-react/hooks/todoLists";
+import { useTodoList } from "@karakeep/shared-react/hooks/todoLists";
 import { ZTodoList } from "@karakeep/shared/types/todos";
 
 import DeleteTodoListConfirmationDialog from "./DeleteTodoListConfirmationDialog";
@@ -20,11 +21,8 @@ export default function TodoListHeader({
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const { data } = useTodoLists({
-    initialData: { todoLists: [initialData] },
-  });
-  const todoList =
-    data?.todoLists.find((l) => l.id === initialData.id) ?? initialData;
+  const { data } = useTodoList({ todoListId: initialData.id }, { initialData });
+  const todoList = data ?? initialData;
 
   return (
     <div className="flex items-start justify-between gap-4">
@@ -42,6 +40,19 @@ export default function TodoListHeader({
               total: todoList.itemsCount,
             })}
           </p>
+          {todoList.tags.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {todoList.tags.map((tag) => (
+                <Badge
+                  key={tag.id}
+                  variant="secondary"
+                  className="text-nowrap font-light"
+                >
+                  {tag.name}
+                </Badge>
+              ))}
+            </div>
+          )}
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2">
