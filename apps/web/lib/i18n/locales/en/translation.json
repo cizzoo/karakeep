@@ -31,6 +31,7 @@
     "pdf": "Archived PDF",
     "video": "Video",
     "archive": "Archive",
+    "todos": "Todos",
     "home": "Home",
     "title": "Title",
     "description": "Description",
@@ -381,6 +382,10 @@
           "tags": {
             "label": "Tags",
             "description": "Access and modify tags."
+          },
+          "todoLists": {
+            "label": "Todo Lists",
+            "description": "Manage todo lists and their items."
           },
           "users": {
             "label": "User account",
@@ -869,6 +874,25 @@
     "items_count_one": "{{count}} item",
     "items_count_other": "{{count}} items"
   },
+  "todos": {
+    "all_todo_lists": "All Todos",
+    "new_todo_list": "New Todo List",
+    "edit_todo_list": "Edit Todo List",
+    "delete_todo_list": {
+      "title": "Delete Todo List",
+      "description": "Deleting a todo list also deletes all of its items. This can't be undone."
+    },
+    "name_placeholder": "Todo list name",
+    "icon_label": "Icon",
+    "no_todo_lists": "You don't have any todo lists yet.",
+    "no_todo_lists_description": "Create a todo list to start keeping track of things to do.",
+    "no_items": "No items yet. Add one below.",
+    "add_item_placeholder": "Add a new item...",
+    "add_item": "Add",
+    "summary_list_one": "{{count}} todo list",
+    "summary_list_other": "{{count}} todo lists",
+    "items_done": "{{done}}/{{total}} done"
+  },
   "tags": {
     "all_tags": "All Tags",
     "your_tags": "Your Tags",
@@ -1052,6 +1076,13 @@
       "failed_to_create": "Failed to create tag",
       "updated": "Tag has been updated!",
       "failed_to_update": "Failed to update tag"
+    },
+    "todos": {
+      "created": "Todo list has been created!",
+      "updated": "Todo list has been updated!",
+      "deleted": "Todo list has been deleted!",
+      "item_added": "Item has been added!",
+      "item_deleted": "Item has been deleted!"
     }
   },
   "banners": {

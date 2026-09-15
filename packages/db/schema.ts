@@ -500,6 +500,43 @@ export const bookmarkLists = sqliteTable(
   ],
 );
 
+export const todoLists = sqliteTable(
+  "todoLists",
+  {
+    id: text("id")
+      .notNull()
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    name: text("name").notNull(),
+    icon: text("icon").notNull().default("📋"),
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: createdAtField(),
+    modifiedAt: modifiedAtField(),
+  },
+  (tl) => [index("todoLists_userId_idx").on(tl.userId)],
+);
+
+export const todoItems = sqliteTable(
+  "todoItems",
+  {
+    id: text("id")
+      .notNull()
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    todoListId: text("todoListId")
+      .notNull()
+      .references(() => todoLists.id, { onDelete: "cascade" }),
+    text: text("text").notNull(),
+    done: integer("done", { mode: "boolean" }).notNull().default(false),
+    position: real("position").notNull(),
+    createdAt: createdAtField(),
+    modifiedAt: modifiedAtField(),
+  },
+  (ti) => [index("todoItems_todoListId_idx").on(ti.todoListId)],
+);
+
 export const bookmarksInLists = sqliteTable(
   "bookmarksInLists",
   {
@@ -1052,6 +1089,21 @@ export const bookmarkListsRelations = relations(
     }),
   }),
 );
+
+export const todoListsRelations = relations(todoLists, ({ one, many }) => ({
+  user: one(users, {
+    fields: [todoLists.userId],
+    references: [users.id],
+  }),
+  items: many(todoItems),
+}));
+
+export const todoItemsRelations = relations(todoItems, ({ one }) => ({
+  todoList: one(todoLists, {
+    fields: [todoItems.todoListId],
+    references: [todoLists.id],
+  }),
+}));
 
 export const bookmarksInListsRelations = relations(
   bookmarksInLists,

@@ -15,6 +15,7 @@ import { publicBookmarks } from "./publicBookmarks";
 import { rulesAppRouter } from "./rules";
 import { subscriptionsRouter } from "./subscriptions";
 import { tagsAppRouter } from "./tags";
+import { todoListsAppRouter } from "./todoLists";
 import { usersAppRouter } from "./users";
 import { webhooksAppRouter } from "./webhooks";
 
@@ -24,6 +25,7 @@ export const appRouter = router({
   users: usersAppRouter,
   lists: listsAppRouter,
   tags: tagsAppRouter,
+  todoLists: todoListsAppRouter,
   prompts: promptsAppRouter,
   admin: adminAppRouter,
   feeds: feedsAppRouter,

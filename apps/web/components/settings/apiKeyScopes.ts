@@ -71,6 +71,11 @@ const RESOURCE_TRANSLATION_KEYS = {
     descriptionKey: "settings.api_keys.scopes.resources.tags.description",
     hidden: false,
   },
+  todoLists: {
+    labelKey: "settings.api_keys.scopes.resources.todoLists.label",
+    descriptionKey: "settings.api_keys.scopes.resources.todoLists.description",
+    hidden: false,
+  },
   users: {
     labelKey: "settings.api_keys.scopes.resources.users.label",
     descriptionKey: "settings.api_keys.scopes.resources.users.description",
