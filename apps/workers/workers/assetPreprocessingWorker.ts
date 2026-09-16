@@ -1,9 +1,6 @@
 import os from "os";
 import { and, eq } from "drizzle-orm";
 import { workerStatsCounter } from "metrics";
-import PDFParser from "pdf2json";
-import { fromBuffer } from "pdf2pic";
-import { createWorker } from "tesseract.js";
 import { withWorkerEventLog, withWorkerTracing } from "workerTracing";
 
 import type { AssetPreprocessingRequest } from "@karakeep/shared-server";
@@ -17,12 +14,15 @@ import {
 import {
   addLogFields,
   AssetPreprocessingQueue,
+  EmbeddingsQueue,
+  newAssetId,
   OpenAIQueue,
   QuotaService,
+  readAsset,
+  saveAsset,
   StorageQuotaError,
   triggerSearchReindex,
 } from "@karakeep/shared-server";
-import { newAssetId, readAsset, saveAsset } from "@karakeep/shared/assetdb";
 import serverConfig from "@karakeep/shared/config";
 import { InferenceClientFactory } from "@karakeep/shared/inference";
 import logger from "@karakeep/shared/logger";
@@ -66,9 +66,8 @@ export class AssetPreprocessingWorker {
 
             const bookmarkId = job.data?.bookmarkId;
             if (bookmarkId && job.numRetriesLeft == 0) {
-              await db.transaction(async (tx) => {
-                await tx
-                  .update(bookmarks)
+              await db.transaction((tx) => {
+                tx.update(bookmarks)
                   .set({
                     taggingStatus: null,
                   })
@@ -77,9 +76,9 @@ export class AssetPreprocessingWorker {
                       eq(bookmarks.id, bookmarkId),
                       eq(bookmarks.taggingStatus, "pending"),
                     ),
-                  );
-                await tx
-                  .update(bookmarks)
+                  )
+                  .run();
+                tx.update(bookmarks)
                   .set({
                     summarizationStatus: null,
                   })
@@ -88,7 +87,19 @@ export class AssetPreprocessingWorker {
                       eq(bookmarks.id, bookmarkId),
                       eq(bookmarks.summarizationStatus, "pending"),
                     ),
-                  );
+                  )
+                  .run();
+                tx.update(bookmarks)
+                  .set({
+                    embeddingStatus: null,
+                  })
+                  .where(
+                    and(
+                      eq(bookmarks.id, bookmarkId),
+                      eq(bookmarks.embeddingStatus, "pending"),
+                    ),
+                  )
+                  .run();
               });
             }
             return Promise.resolve();
@@ -109,6 +120,7 @@ async function readImageText(buffer: Buffer) {
   if (serverConfig.ocr.langs.length == 1 && serverConfig.ocr.langs[0] == "") {
     return null;
   }
+  const { createWorker } = await import("tesseract.js");
   const worker = await createWorker(serverConfig.ocr.langs, undefined, {
     cachePath: serverConfig.ocr.cacheDir ?? os.tmpdir(),
   });
@@ -159,6 +171,7 @@ async function readPDFText(buffer: Buffer): Promise<{
   text: string;
   metadata: Record<string, object>;
 }> {
+  const { default: PDFParser } = await import("pdf2json");
   return new Promise((resolve, reject) => {
     const pdfParser = new PDFParser(null, true);
     pdfParser.on("pdfParser_dataError", reject);
@@ -194,6 +207,7 @@ export async function extractAndSavePDFScreenshot(
     `[assetPreprocessing][${jobId}] Attempting to generate PDF screenshot for bookmarkId: ${bookmark.id}`,
   );
   try {
+    const { fromBuffer } = await import("pdf2pic");
     /**
      * If you encountered any issues with this library, make sure you have ghostscript and graphicsmagick installed following this URL
      * https://github.com/yakovmeister/pdf2image/blob/HEAD/docs/gm-installation.md
@@ -461,13 +475,24 @@ async function run(req: DequeuedJob<AssetPreprocessingRequest>) {
     groupId: bookmark.userId,
   };
   if (!isFixMode || anythingChanged) {
-    await OpenAIQueue.enqueue(
-      {
-        bookmarkId,
-        type: "tag",
-      },
-      enqueueOpts,
-    );
+    if (serverConfig.embedding.enableAutoIndexing) {
+      await EmbeddingsQueue.enqueue(
+        {
+          bookmarkId,
+          type: "embed",
+          runTaggingOnComplete: true,
+        },
+        enqueueOpts,
+      );
+    } else {
+      await OpenAIQueue.enqueue(
+        {
+          bookmarkId,
+          type: "tag",
+        },
+        enqueueOpts,
+      );
+    }
     await OpenAIQueue.enqueue(
       {
         bookmarkId,

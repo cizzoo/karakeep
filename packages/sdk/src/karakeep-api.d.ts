@@ -37,7 +37,7 @@ export interface paths {
     };
     /**
      * Search bookmarks
-     * @description Full-text search across all bookmarks. Searches bookmark titles, content, descriptions, and notes. Results default to relevance sorting.
+     * @description Search across all bookmarks using full-text, semantic, or hybrid ranking. Full-text search covers bookmark titles, content, descriptions, and notes. Results default to full-text relevance sorting; semantic and hybrid modes support relevance sorting only.
      */
     get: operations["searchBookmarks"];
     put?: never;
@@ -94,6 +94,26 @@ export interface paths {
      * @description Partially update a bookmark. Only the fields provided in the request body will be updated. Supports updating common fields (title, note, archived, favourited) as well as type-specific fields.
      */
     patch: operations["updateBookmark"];
+    trace?: never;
+  };
+  "/bookmarks/{bookmarkId}/content": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get readable bookmark content
+     * @description Retrieve a bounded chunk of an agent-readable bookmark representation. Link content is rendered from extracted HTML; text and media bookmarks use their stored or extracted text. Continue reading by passing the opaque `nextCursor` from the previous response.
+     */
+    get: operations["getBookmarkReadableContent"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
     trace?: never;
   };
   "/bookmarks/{bookmarkId}/summarize": {
@@ -524,6 +544,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/assets/{assetId}/signed-url": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get a signed asset URL
+     * @description Generate a temporary signed URL that can be used to download an asset without sending an API key.
+     */
+    get: operations["getAssetSignedUrl"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/admin/users/{userId}": {
     parameters: {
       query?: never;
@@ -555,7 +595,7 @@ export interface paths {
     put?: never;
     /**
      * Trigger recrawl of links (admin)
-     * @description Trigger a recrawl of link bookmarks. You can filter by crawl status to target specific bookmarks (e.g., only failed ones). Optionally run AI inference after crawling. Requires admin role.
+     * @description Trigger a recrawl of link bookmarks. You can filter by crawl status to target specific bookmarks (e.g., only failed ones) and by how recently they were modified. Optionally run AI inference after crawling. Requires admin role.
      */
     post: operations["adminTriggerRecrawl"];
     delete?: never;
@@ -575,7 +615,7 @@ export interface paths {
     put?: never;
     /**
      * Trigger reindex of all bookmarks (admin)
-     * @description Trigger a reindex of all bookmarks in the search engine. This clears the existing index and re-queues all bookmarks for indexing. Requires admin role.
+     * @description Trigger a reindex of bookmarks in the search engine. Without modifiedWithinSeconds, this clears the existing index and re-queues all bookmarks. When set, only bookmarks modified within that many seconds are re-queued and the existing index is preserved. Requires admin role.
      */
     post: operations["adminTriggerReindex"];
     delete?: never;
@@ -595,7 +635,7 @@ export interface paths {
     put?: never;
     /**
      * Trigger AI inference on bookmarks (admin)
-     * @description Trigger AI inference (tagging or summarization) on bookmarks. You can filter by status to target specific bookmarks (e.g., only failed ones). Requires admin role.
+     * @description Trigger AI inference (tagging or summarization) on bookmarks. You can filter by status and by how recently bookmarks were modified. Requires admin role.
      */
     post: operations["adminTriggerInference"];
     delete?: never;
@@ -783,9 +823,18 @@ export interface components {
      * @example ieidlxygmwj87oxz5hxttoc8
      */
     FeedId: string;
+    PaginatedBookmarks: {
+      bookmarks: components["schemas"]["Bookmark"][];
+      /** @description Cursor for the next page, or null if no more results. */
+      nextCursor: string | null;
+    };
     Bookmark: {
       id: string;
+      /** Format: date-time */
+      firstCreatedAt?: string;
+      /** Format: date-time */
       createdAt: string;
+      /** Format: date-time */
       modifiedAt: string | null;
       title?: string | null;
       archived: boolean;
@@ -794,6 +843,8 @@ export interface components {
       taggingStatus: "success" | "failure" | "pending" | null;
       /** @enum {string|null} */
       summarizationStatus: "success" | "failure" | "pending" | null;
+      /** @enum {string|null} */
+      embeddingStatus: "success" | "failure" | "pending" | null;
       note?: string | null;
       summary?: string | null;
       /** @enum {string|null} */
@@ -831,12 +882,25 @@ export interface components {
             favicon?: string | null;
             htmlContent?: string | null;
             contentAssetId?: string | null;
+            /** @enum {string|null} */
+            readerViewStatus?:
+              | "readable"
+              | "not_readable"
+              | "uncertain"
+              | "unavailable"
+              | null;
+            readerViewScore?: number | null;
+            /** @enum {string|null} */
+            preferredPreview?: "reader_view" | "screenshot" | "overview" | null;
+            /** Format: date-time */
             crawledAt?: string | null;
             /** @enum {string|null} */
             crawlStatus?: "success" | "failure" | "pending" | null;
             author?: string | null;
             publisher?: string | null;
+            /** Format: date-time */
             datePublished?: string | null;
+            /** Format: date-time */
             dateModified?: string | null;
           }
         | {
@@ -879,11 +943,6 @@ export interface components {
         fileName?: string | null;
       }[];
     };
-    PaginatedBookmarks: {
-      bookmarks: components["schemas"]["Bookmark"][];
-      /** @description Cursor for the next page, or null if no more results. */
-      nextCursor: string | null;
-    };
     /** @description Cursor from a previous response to fetch the next page. */
     Cursor: string;
     Error: {
@@ -891,6 +950,28 @@ export interface components {
       code: string;
       /** @description A human-readable error message. */
       message: string;
+    };
+    BookmarkReadableContent: {
+      bookmarkId: string;
+      /** @enum {string} */
+      bookmarkType: "link" | "text" | "asset";
+      /** @enum {string} */
+      format: "markdown" | "text";
+      content: string;
+      /** @description A hash identifying the rendered content version used by this cursor. */
+      contentVersion: string;
+      range: {
+        /** @description Zero-based start offset in Unicode characters, inclusive. */
+        start: number;
+        /** @description Zero-based end offset in Unicode characters, exclusive. */
+        end: number;
+        /** @description Total number of Unicode characters in the rendered content. */
+        total: number;
+      };
+      /** @description Cursor for the next chunk, or null when all content has been returned. */
+      nextCursor: string | null;
+      /** @description Whether more readable content remains after this chunk. */
+      truncated: boolean;
     };
     List: {
       id: string;
@@ -922,6 +1003,7 @@ export interface components {
       note: string | null;
       id: string;
       userId: string;
+      /** Format: date-time */
       createdAt: string;
     };
     Tag: {
@@ -948,7 +1030,20 @@ export interface components {
       /** @description The original file name of the uploaded file. */
       fileName: string;
     };
-    "File to be uploaded": unknown;
+    SignedAssetUrl: {
+      /** @description The unique identifier of the asset. */
+      assetId: string;
+      /**
+       * Format: uri
+       * @description The temporary URL for downloading the asset.
+       */
+      signedUrl: string;
+      /**
+       * Format: date-time
+       * @description When the signed URL expires, in ISO 8601 format.
+       */
+      expiresAt: string;
+    };
     Feed: {
       id: string;
       name: string;
@@ -972,12 +1067,19 @@ export interface components {
   };
   responses: never;
   parameters: {
+    /** @description The unique identifier of the bookmark. */
     BookmarkId: components["schemas"]["BookmarkId"];
+    /** @description The unique identifier of the list. */
     ListId: components["schemas"]["ListId"];
+    /** @description The unique identifier of the tag. */
     TagId: components["schemas"]["TagId"];
+    /** @description The unique identifier of the highlight. */
     HighlightId: components["schemas"]["HighlightId"];
+    /** @description The unique identifier of the asset. */
     AssetId: components["schemas"]["AssetId"];
+    /** @description The unique identifier of the backup. */
     BackupId: components["schemas"]["BackupId"];
+    /** @description The unique identifier of the feed. */
     FeedId: components["schemas"]["FeedId"];
   };
   requestBodies: never;
@@ -1044,7 +1146,8 @@ export interface operations {
           favourited?: boolean;
           note?: string;
           summary?: string;
-          createdAt?: string | null;
+          /** Format: date-time */
+          createdAt?: string;
           /** @enum {string} */
           crawlPriority?: "low" | "normal";
           importSessionId?: string;
@@ -1128,6 +1231,8 @@ export interface operations {
       query: {
         /** @description The search query string. */
         q: string;
+        /** @description Search strategy. 'fts' uses full-text search, 'semantic' uses bookmark embeddings, and 'hybrid' fuses a fixed candidate window from both. Hybrid falls back to full-text search when the query contains no free-text terms or when embedding infrastructure is unavailable. Semantic hits below a minimum similarity are dropped, so semantic search may return fewer results than requested. */
+        searchMode?: "fts" | "semantic" | "hybrid";
         /** @description Sort order for results. Defaults to 'relevance'. Use 'asc' or 'desc' for date-based sorting. */
         sortOrder?: "asc" | "desc" | "relevance";
         /** @description Maximum number of items to return per page. */
@@ -1206,6 +1311,7 @@ export interface operations {
       };
       header?: never;
       path: {
+        /** @description The unique identifier of the bookmark. */
         bookmarkId: components["parameters"]["BookmarkId"];
       };
       cookie?: never;
@@ -1246,6 +1352,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description The unique identifier of the bookmark. */
         bookmarkId: components["parameters"]["BookmarkId"];
       };
       cookie?: never;
@@ -1284,6 +1391,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description The unique identifier of the bookmark. */
         bookmarkId: components["parameters"]["BookmarkId"];
       };
       cookie?: never;
@@ -1297,13 +1405,16 @@ export interface operations {
           summary?: string | null;
           note?: string;
           title?: string | null;
-          createdAt?: string | null;
+          /** Format: date-time */
+          createdAt?: string;
           /** Format: uri */
           url?: string;
           description?: string | null;
           author?: string | null;
           publisher?: string | null;
+          /** Format: date-time */
           datePublished?: string | null;
+          /** Format: date-time */
           dateModified?: string | null;
           text?: string | null;
           assetContent?: string | null;
@@ -1319,7 +1430,11 @@ export interface operations {
         content: {
           "application/json": {
             id: string;
+            /** Format: date-time */
+            firstCreatedAt?: string;
+            /** Format: date-time */
             createdAt: string;
+            /** Format: date-time */
             modifiedAt: string | null;
             title?: string | null;
             archived: boolean;
@@ -1328,6 +1443,8 @@ export interface operations {
             taggingStatus: "success" | "failure" | "pending" | null;
             /** @enum {string|null} */
             summarizationStatus: "success" | "failure" | "pending" | null;
+            /** @enum {string|null} */
+            embeddingStatus: "success" | "failure" | "pending" | null;
             note?: string | null;
             summary?: string | null;
             /** @enum {string|null} */
@@ -1365,11 +1482,78 @@ export interface operations {
       };
     };
   };
+  getBookmarkReadableContent: {
+    parameters: {
+      query?: {
+        /** @description The readable representation. If omitted with a cursor, the cursor's format is used; otherwise defaults to markdown. */
+        format?: "markdown" | "text";
+        /** @description Maximum number of Unicode characters to return. The chunk may end earlier at a paragraph or line boundary. */
+        maxChars?: number;
+        /** @description Opaque continuation cursor returned as `nextCursor` by a previous response. */
+        cursor?: string;
+      };
+      header?: never;
+      path: {
+        /** @description The unique identifier of the bookmark. */
+        bookmarkId: components["parameters"]["BookmarkId"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description A bounded chunk of readable bookmark content. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BookmarkReadableContent"];
+        };
+      };
+      /** @description Bad request — the cursor is malformed, mismatched, or outside the content. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Error"];
+        };
+      };
+      /** @description Unauthorized — the Bearer token is missing, invalid, or expired. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+      /** @description Bookmark not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Error"];
+        };
+      };
+      /** @description The bookmark content changed after the supplied cursor was issued. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Error"];
+        };
+      };
+    };
+  };
   summarizeBookmark: {
     parameters: {
       query?: never;
       header?: never;
       path: {
+        /** @description The unique identifier of the bookmark. */
         bookmarkId: components["parameters"]["BookmarkId"];
       };
       cookie?: never;
@@ -1384,7 +1568,11 @@ export interface operations {
         content: {
           "application/json": {
             id: string;
+            /** Format: date-time */
+            firstCreatedAt?: string;
+            /** Format: date-time */
             createdAt: string;
+            /** Format: date-time */
             modifiedAt: string | null;
             title?: string | null;
             archived: boolean;
@@ -1393,6 +1581,8 @@ export interface operations {
             taggingStatus: "success" | "failure" | "pending" | null;
             /** @enum {string|null} */
             summarizationStatus: "success" | "failure" | "pending" | null;
+            /** @enum {string|null} */
+            embeddingStatus: "success" | "failure" | "pending" | null;
             note?: string | null;
             summary?: string | null;
             /** @enum {string|null} */
@@ -1435,6 +1625,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description The unique identifier of the bookmark. */
         bookmarkId: components["parameters"]["BookmarkId"];
       };
       cookie?: never;
@@ -1492,6 +1683,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description The unique identifier of the bookmark. */
         bookmarkId: components["parameters"]["BookmarkId"];
       };
       cookie?: never;
@@ -1549,6 +1741,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description The unique identifier of the bookmark. */
         bookmarkId: components["parameters"]["BookmarkId"];
       };
       cookie?: never;
@@ -1591,6 +1784,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description The unique identifier of the bookmark. */
         bookmarkId: components["parameters"]["BookmarkId"];
       };
       cookie?: never;
@@ -1633,6 +1827,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description The unique identifier of the bookmark. */
         bookmarkId: components["parameters"]["BookmarkId"];
       };
       cookie?: never;
@@ -1715,7 +1910,9 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description The unique identifier of the bookmark. */
         bookmarkId: components["parameters"]["BookmarkId"];
+        /** @description The unique identifier of the asset. */
         assetId: components["parameters"]["AssetId"];
       };
       cookie?: never;
@@ -1762,7 +1959,9 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description The unique identifier of the bookmark. */
         bookmarkId: components["parameters"]["BookmarkId"];
+        /** @description The unique identifier of the asset. */
         assetId: components["parameters"]["AssetId"];
       };
       cookie?: never;
@@ -1886,6 +2085,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description The unique identifier of the list. */
         listId: components["parameters"]["ListId"];
       };
       cookie?: never;
@@ -1926,6 +2126,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description The unique identifier of the list. */
         listId: components["parameters"]["ListId"];
       };
       cookie?: never;
@@ -1964,6 +2165,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description The unique identifier of the list. */
         listId: components["parameters"]["ListId"];
       };
       cookie?: never;
@@ -2025,6 +2227,7 @@ export interface operations {
       };
       header?: never;
       path: {
+        /** @description The unique identifier of the list. */
         listId: components["parameters"]["ListId"];
       };
       cookie?: never;
@@ -2065,7 +2268,9 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description The unique identifier of the list. */
         listId: components["parameters"]["ListId"];
+        /** @description The unique identifier of the bookmark. */
         bookmarkId: components["parameters"]["BookmarkId"];
       };
       cookie?: never;
@@ -2104,7 +2309,9 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description The unique identifier of the list. */
         listId: components["parameters"]["ListId"];
+        /** @description The unique identifier of the bookmark. */
         bookmarkId: components["parameters"]["BookmarkId"];
       };
       cookie?: never;
@@ -2230,6 +2437,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description The unique identifier of the tag. */
         tagId: components["parameters"]["TagId"];
       };
       cookie?: never;
@@ -2270,6 +2478,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description The unique identifier of the tag. */
         tagId: components["parameters"]["TagId"];
       };
       cookie?: never;
@@ -2308,6 +2517,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description The unique identifier of the tag. */
         tagId: components["parameters"]["TagId"];
       };
       cookie?: never;
@@ -2367,6 +2577,7 @@ export interface operations {
       };
       header?: never;
       path: {
+        /** @description The unique identifier of the tag. */
         tagId: components["parameters"]["TagId"];
       };
       cookie?: never;
@@ -2504,6 +2715,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description The unique identifier of the highlight. */
         highlightId: components["parameters"]["HighlightId"];
       };
       cookie?: never;
@@ -2544,6 +2756,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description The unique identifier of the highlight. */
         highlightId: components["parameters"]["HighlightId"];
       };
       cookie?: never;
@@ -2584,6 +2797,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description The unique identifier of the highlight. */
         highlightId: components["parameters"]["HighlightId"];
       };
       cookie?: never;
@@ -2756,7 +2970,11 @@ export interface operations {
     requestBody?: {
       content: {
         "multipart/form-data": {
-          file: components["schemas"]["File to be uploaded"];
+          /**
+           * Format: binary
+           * @description File to be uploaded
+           */
+          file: string;
         };
       };
     };
@@ -2786,6 +3004,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description The unique identifier of the asset. */
         assetId: components["parameters"]["AssetId"];
       };
       cookie?: never;
@@ -2810,11 +3029,44 @@ export interface operations {
       };
     };
   };
+  getAssetSignedUrl: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description The unique identifier of the asset. */
+        assetId: components["parameters"]["AssetId"];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description A temporary signed URL for downloading the asset and its expiration time. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SignedAssetUrl"];
+        };
+      };
+      /** @description Unauthorized — the Bearer token is missing, invalid, or expired. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+        };
+      };
+    };
+  };
   adminUpdateUser: {
     parameters: {
       query?: never;
       header?: never;
       path: {
+        /** @description The ID of the user to update. */
         userId: string;
       };
       cookie?: never;
@@ -2904,6 +3156,8 @@ export interface operations {
            * @default false
            */
           runInference?: boolean;
+          /** @description Only process bookmarks modified within this many seconds. Omit to process all matching bookmarks. */
+          modifiedWithinSeconds?: number;
         };
       };
     };
@@ -2956,7 +3210,15 @@ export interface operations {
       path?: never;
       cookie?: never;
     };
-    requestBody?: never;
+    /** @description Optional time window for the reindex job. */
+    requestBody?: {
+      content: {
+        "application/json": {
+          /** @description Only process bookmarks modified within this many seconds. Omit to process all matching bookmarks. */
+          modifiedWithinSeconds?: number;
+        };
+      };
+    };
     responses: {
       /** @description Reindex jobs triggered successfully. */
       200: {
@@ -3012,6 +3274,8 @@ export interface operations {
            * @enum {string}
            */
           status?: "success" | "failure" | "pending" | "all";
+          /** @description Only process bookmarks modified within this many seconds. Omit to process all matching bookmarks. */
+          modifiedWithinSeconds?: number;
         };
       };
     };
@@ -3077,6 +3341,7 @@ export interface operations {
               id: string;
               userId: string;
               assetId: string | null;
+              /** Format: date-time */
               createdAt: string;
               size: number;
               bookmarkCount: number;
@@ -3117,6 +3382,7 @@ export interface operations {
             id: string;
             userId: string;
             assetId: string | null;
+            /** Format: date-time */
             createdAt: string;
             size: number;
             bookmarkCount: number;
@@ -3142,6 +3408,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description The unique identifier of the backup. */
         backupId: components["parameters"]["BackupId"];
       };
       cookie?: never;
@@ -3158,6 +3425,7 @@ export interface operations {
             id: string;
             userId: string;
             assetId: string | null;
+            /** Format: date-time */
             createdAt: string;
             size: number;
             bookmarkCount: number;
@@ -3192,6 +3460,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description The unique identifier of the backup. */
         backupId: components["parameters"]["BackupId"];
       };
       cookie?: never;
@@ -3230,6 +3499,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description The unique identifier of the backup. */
         backupId: components["parameters"]["BackupId"];
       };
       cookie?: never;
@@ -3242,7 +3512,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/zip": unknown;
+          "application/zip": string;
         };
       };
       /** @description Unauthorized — the Bearer token is missing, invalid, or expired. */
@@ -3351,6 +3621,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description The unique identifier of the feed. */
         feedId: components["parameters"]["FeedId"];
       };
       cookie?: never;
@@ -3391,6 +3662,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description The unique identifier of the feed. */
         feedId: components["parameters"]["FeedId"];
       };
       cookie?: never;
@@ -3429,6 +3701,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description The unique identifier of the feed. */
         feedId: components["parameters"]["FeedId"];
       };
       cookie?: never;
@@ -3480,6 +3753,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        /** @description The unique identifier of the feed. */
         feedId: components["parameters"]["FeedId"];
       };
       cookie?: never;

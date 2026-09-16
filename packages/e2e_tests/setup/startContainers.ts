@@ -47,19 +47,21 @@ export default async function ({ provide }: GlobalSetupContext) {
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
   const karakeepPort = await getRandomPort();
   const aimockPort = await getRandomPort();
+  const meiliPort = await getRandomPort();
 
   const buildArg = process.env.E2E_TEST_NO_BUILD ? "" : "--build";
 
   console.log(
-    `Starting docker compose on ports karakeep=${karakeepPort} aimock=${aimockPort}...`,
+    `Starting docker compose on ports karakeep=${karakeepPort} aimock=${aimockPort} meili=${meiliPort}...`,
   );
-  execSync(`docker compose up ${buildArg} -d`, {
+  execSync(`docker compose up ${buildArg} -d --wait --wait-timeout 60`, {
     cwd: __dirname,
     stdio: "inherit",
     env: {
       ...process.env,
       KARAKEEP_PORT: karakeepPort.toString(),
       AIMOCK_PORT: aimockPort.toString(),
+      MEILI_PORT: meiliPort.toString(),
     },
   });
 
@@ -74,9 +76,11 @@ export default async function ({ provide }: GlobalSetupContext) {
 
   provide("karakeepPort", karakeepPort);
   provide("aimockPort", aimockPort);
+  provide("meiliPort", meiliPort);
 
   process.env.KARAKEEP_PORT = karakeepPort.toString();
   process.env.AIMOCK_PORT = aimockPort.toString();
+  process.env.MEILI_PORT = meiliPort.toString();
 
   return async () => {
     console.log("Capturing docker logs...");
@@ -89,7 +93,7 @@ export default async function ({ provide }: GlobalSetupContext) {
         "meilisearch",
         "chrome",
         "nginx",
-        "minio",
+        "garage",
         "aimock",
       ];
       for (const service of services) {
@@ -122,5 +126,6 @@ declare module "vitest" {
   export interface ProvidedContext {
     karakeepPort: number;
     aimockPort: number;
+    meiliPort: number;
   }
 }

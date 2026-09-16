@@ -16,6 +16,21 @@ const optionalStringBool = () =>
     .transform((s) => s === "true")
     .optional();
 
+// Only asymmetric algorithms are supported here because ID tokens are verified
+// against the provider's JWKS. Do not add "none" or symmetric HS* algorithms.
+const oauthIdTokenSignedResponseAlg = z.enum([
+  "RS256",
+  "RS384",
+  "RS512",
+  "PS256",
+  "PS384",
+  "PS512",
+  "ES256",
+  "ES384",
+  "ES512",
+  "EdDSA",
+]);
+
 const allEnv = z.object({
   PORT: z.coerce.number().default(3000),
   WORKERS_HOST: z.string().default("127.0.0.1"),
@@ -52,6 +67,7 @@ const allEnv = z.object({
   OAUTH_WELLKNOWN_URL: z.string().url().optional(),
   OAUTH_CLIENT_SECRET: z.string().optional(),
   OAUTH_CLIENT_ID: z.string().optional(),
+  OAUTH_ID_TOKEN_SIGNED_RESPONSE_ALG: oauthIdTokenSignedResponseAlg.optional(),
   OAUTH_TIMEOUT: z.coerce.number().optional().default(3500),
   OAUTH_SCOPE: z.string().default("openid email profile"),
   OAUTH_PROVIDER_NAME: z.string().default("Custom Provider"),
@@ -60,20 +76,36 @@ const allEnv = z.object({
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_BASE_URL: z.string().url().optional(),
   OPENAI_PROXY_URL: z.string().url().optional(),
+  OPENAI_TIMEOUT_SEC: z.coerce.number().positive().optional(),
   OPENAI_SERVICE_TIER: z.enum(["auto", "default", "flex"]).optional(),
   OPENAI_REASONING_EFFORT: z
     .enum(["none", "minimal", "low", "medium", "high", "xhigh"])
     .optional(),
   OLLAMA_BASE_URL: z.string().url().optional(),
   OLLAMA_KEEP_ALIVE: z.string().optional(),
+  CHAT_ENABLED: stringBool("false"),
+  CHAT_MODEL: z.string().optional(),
+  SEMANTIC_SEARCH_ENABLED: stringBool("true"),
   INFERENCE_JOB_TIMEOUT_SEC: z.coerce.number().default(30),
   INFERENCE_FETCH_TIMEOUT_SEC: z.coerce.number().default(300),
-  INFERENCE_TEXT_MODEL: z.string().default("gpt-4.1-mini"),
+  INFERENCE_TEXT_MODEL: z.string().default("gpt-5.6-luna"),
   INFERENCE_IMAGE_MODEL: z.string().default("gpt-4o-mini"),
+  EMBEDDING_ENABLE_AUTO_INDEXING: optionalStringBool(),
+  EMBEDDING_OPENAI_API_KEY: z.string().optional(),
+  EMBEDDING_OPENAI_BASE_URL: z.string().url().optional(),
   EMBEDDING_TEXT_MODEL: z.string().default("text-embedding-3-small"),
+  EMBEDDING_TEXT_MODEL_DIMENSION_OVERRIDE: z.coerce
+    .number()
+    .int()
+    .positive()
+    .optional(),
+  EMBEDDING_DIMENSIONS: z.coerce.number().default(1536),
+  EMBEDDING_CONTEXT_LENGTH: z.coerce.number().int().positive().default(8000),
+  EMBEDDING_NUM_WORKERS: z.coerce.number().default(1),
+  EMBEDDING_JOB_TIMEOUT_SEC: z.coerce.number().default(60),
   INFERENCE_CONTEXT_LENGTH: z.coerce.number().default(2048),
   INFERENCE_MAX_OUTPUT_TOKENS: z.coerce.number().default(2048),
-  INFERENCE_USE_MAX_COMPLETION_TOKENS: stringBool("false"),
+  INFERENCE_USE_MAX_COMPLETION_TOKENS: optionalStringBool(),
   INFERENCE_SUPPORTS_STRUCTURED_OUTPUT: optionalStringBool(),
   INFERENCE_OUTPUT_SCHEMA: z
     .enum(["structured", "json", "plain"])
@@ -107,10 +139,12 @@ const allEnv = z.object({
   CRAWLER_FULL_PAGE_SCREENSHOT: stringBool("false"),
   CRAWLER_STORE_PDF: stringBool("false"),
   CRAWLER_FULL_PAGE_ARCHIVE: stringBool("false"),
+  CRAWLER_FULL_PAGE_ARCHIVE_MAX_SIZE_MB: z.coerce.number().default(0),
   CRAWLER_VIDEO_DOWNLOAD: stringBool("false"),
   CRAWLER_VIDEO_DOWNLOAD_MAX_SIZE: z.coerce.number().default(50),
   CRAWLER_VIDEO_DOWNLOAD_TIMEOUT_SEC: z.coerce.number().default(10 * 60),
   CRAWLER_ENABLE_ADBLOCKER: stringBool("true"),
+  CRAWLER_ENABLE_AUTOCONSENT: stringBool("true"),
   CRAWLER_YTDLP_ARGS: z
     .string()
     .prefault("")
@@ -126,11 +160,13 @@ const allEnv = z.object({
   CRAWLER_IP_VALIDATION_DNS_RESOLVER_TIMEOUT_SEC: z.coerce.number().default(1),
   CRAWLER_DOMAIN_RATE_LIMIT_WINDOW_MS: z.coerce.number().min(1).optional(),
   CRAWLER_DOMAIN_RATE_LIMIT_MAX_REQUESTS: z.coerce.number().min(1).optional(),
+  CRAWLER_PREFLIGHT_USER_AGENT: z.string().optional(),
   LOG_LEVEL: z.string().default("debug"),
   NO_COLOR: stringBool("false"),
   DEMO_MODE: stringBool("false"),
   DEMO_MODE_EMAIL: z.string().optional(),
   DEMO_MODE_PASSWORD: z.string().optional(),
+  DEGRADED_MODE: stringBool("false"),
   DATA_DIR: z.string().default(""),
   ASSETS_DIR: z.string().optional(),
   MAX_ASSET_SIZE_MB: z.coerce.number().default(50),
@@ -274,6 +310,7 @@ const serverConfigSchema = allEnv.transform((val, ctx) => {
         wellKnownUrl: val.OAUTH_WELLKNOWN_URL,
         clientSecret: val.OAUTH_CLIENT_SECRET,
         clientId: val.OAUTH_CLIENT_ID,
+        idTokenSignedResponseAlg: val.OAUTH_ID_TOKEN_SIGNED_RESPONSE_ALG,
         scope: val.OAUTH_SCOPE,
         name: val.OAUTH_PROVIDER_NAME,
         timeout: val.OAUTH_TIMEOUT,
@@ -304,16 +341,27 @@ const serverConfigSchema = allEnv.transform((val, ctx) => {
       openAIApiKey: val.OPENAI_API_KEY,
       openAIBaseUrl: val.OPENAI_BASE_URL,
       openAIProxyUrl: val.OPENAI_PROXY_URL,
+      openAITimeoutSec: val.OPENAI_TIMEOUT_SEC,
       openAIServiceTier: val.OPENAI_SERVICE_TIER,
       openAIReasoningEffort: val.OPENAI_REASONING_EFFORT,
       ollamaBaseUrl: val.OLLAMA_BASE_URL,
       ollamaKeepAlive: val.OLLAMA_KEEP_ALIVE,
+      chatModel: val.CHAT_MODEL ?? val.INFERENCE_TEXT_MODEL,
       textModel: val.INFERENCE_TEXT_MODEL,
       imageModel: val.INFERENCE_IMAGE_MODEL,
       inferredTagLang: val.INFERENCE_LANG,
       contextLength: val.INFERENCE_CONTEXT_LENGTH,
       maxOutputTokens: val.INFERENCE_MAX_OUTPUT_TOKENS,
-      useMaxCompletionTokens: val.INFERENCE_USE_MAX_COMPLETION_TOKENS,
+      // The new default model (5.6 series) requires this being set to true.
+      // So if someone explicitly sets it to false, we'll respect that. If
+      // someone using the default openai based configuration, we'll default
+      // to true.
+      useMaxCompletionTokens:
+        val.INFERENCE_USE_MAX_COMPLETION_TOKENS !== undefined
+          ? val.INFERENCE_USE_MAX_COMPLETION_TOKENS
+          : !val.OLLAMA_BASE_URL && !val.OPENAI_BASE_URL && !!val.OPENAI_API_KEY
+            ? true
+            : false,
       outputSchema:
         val.INFERENCE_SUPPORTS_STRUCTURED_OUTPUT !== undefined
           ? val.INFERENCE_SUPPORTS_STRUCTURED_OUTPUT
@@ -323,8 +371,30 @@ const serverConfigSchema = allEnv.transform((val, ctx) => {
       enableAutoTagging: val.INFERENCE_ENABLE_AUTO_TAGGING,
       enableAutoSummarization: val.INFERENCE_ENABLE_AUTO_SUMMARIZATION,
     },
+    chat: {
+      enabled: val.CHAT_ENABLED,
+    },
+    experimentalFeatures: {
+      semanticSearch: val.SEMANTIC_SEARCH_ENABLED,
+    },
     embedding: {
+      isConfigured:
+        !!val.OPENAI_API_KEY ||
+        !!val.OLLAMA_BASE_URL ||
+        !!val.EMBEDDING_OPENAI_BASE_URL,
+      enableAutoIndexing:
+        val.EMBEDDING_ENABLE_AUTO_INDEXING === undefined
+          ? // Enabled by default if using the default inference configuration (based on OpenAI models)
+            !val.OLLAMA_BASE_URL && !val.OPENAI_BASE_URL && !!val.OPENAI_API_KEY
+          : val.EMBEDDING_ENABLE_AUTO_INDEXING,
+      openAIApiKey: val.EMBEDDING_OPENAI_API_KEY,
+      openAIBaseUrl: val.EMBEDDING_OPENAI_BASE_URL,
       textModel: val.EMBEDDING_TEXT_MODEL,
+      textModelDimensionOverride: val.EMBEDDING_TEXT_MODEL_DIMENSION_OVERRIDE,
+      dimensions: val.EMBEDDING_DIMENSIONS,
+      contextLength: val.EMBEDDING_CONTEXT_LENGTH,
+      numWorkers: val.EMBEDDING_NUM_WORKERS,
+      jobTimeoutSec: val.EMBEDDING_JOB_TIMEOUT_SEC,
     },
     crawler: {
       numWorkers: val.CRAWLER_NUM_WORKERS,
@@ -340,10 +410,12 @@ const serverConfigSchema = allEnv.transform((val, ctx) => {
       fullPageScreenshot: val.CRAWLER_FULL_PAGE_SCREENSHOT,
       storePdf: val.CRAWLER_STORE_PDF,
       fullPageArchive: val.CRAWLER_FULL_PAGE_ARCHIVE,
+      fullPageArchiveMaxSizeMb: val.CRAWLER_FULL_PAGE_ARCHIVE_MAX_SIZE_MB,
       downloadVideo: val.CRAWLER_VIDEO_DOWNLOAD,
       maxVideoDownloadSize: val.CRAWLER_VIDEO_DOWNLOAD_MAX_SIZE,
       downloadVideoTimeout: val.CRAWLER_VIDEO_DOWNLOAD_TIMEOUT_SEC,
       enableAdblocker: val.CRAWLER_ENABLE_ADBLOCKER,
+      enableAutoconsent: val.CRAWLER_ENABLE_AUTOCONSENT,
       ytDlpArguments: val.CRAWLER_YTDLP_ARGS,
       monolithTimeoutSec: val.CRAWLER_MONOLITH_TIMEOUT_SEC,
       monolithArguments: val.CRAWLER_MONOLITH_ARGS,
@@ -363,6 +435,7 @@ const serverConfigSchema = allEnv.transform((val, ctx) => {
               maxRequests: val.CRAWLER_DOMAIN_RATE_LIMIT_MAX_REQUESTS,
             }
           : null,
+      preflightUserAgent: val.CRAWLER_PREFLIGHT_USER_AGENT,
     },
     ocr: {
       langs: val.OCR_LANGS,
@@ -382,6 +455,7 @@ const serverConfigSchema = allEnv.transform((val, ctx) => {
           password: val.DEMO_MODE_PASSWORD,
         }
       : undefined,
+    degradedMode: val.DEGRADED_MODE,
     dataDir: val.DATA_DIR,
     assetsDir: val.ASSETS_DIR ?? path.join(val.DATA_DIR, "assets"),
     maxAssetSizeMb: val.MAX_ASSET_SIZE_MB,
@@ -429,6 +503,7 @@ const serverConfigSchema = allEnv.transform((val, ctx) => {
       },
     },
     prometheus: {
+      enabled: val.PROMETHEUS_AUTH_TOKEN !== undefined,
       metricsToken:
         val.PROMETHEUS_AUTH_TOKEN ?? crypto.randomBytes(64).toString("hex"),
     },
@@ -501,6 +576,19 @@ const serverConfigSchema = allEnv.transform((val, ctx) => {
     });
     return z.NEVER;
   }
+  if (
+    obj.embedding.textModelDimensionOverride !== undefined &&
+    obj.embedding.textModelDimensionOverride !== obj.embedding.dimensions
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message:
+        "EMBEDDING_TEXT_MODEL_DIMENSION_OVERRIDE must match EMBEDDING_DIMENSIONS",
+      path: ["EMBEDDING_TEXT_MODEL_DIMENSION_OVERRIDE"],
+      fatal: true,
+    });
+    return z.NEVER;
+  }
   return obj;
 });
 
@@ -528,6 +616,18 @@ export const clientConfig = {
     inferredTagLang: serverConfig.inference.inferredTagLang,
     enableAutoTagging: serverConfig.inference.enableAutoTagging,
     enableAutoSummarization: serverConfig.inference.enableAutoSummarization,
+  },
+  chat: {
+    enabled: serverConfig.chat.enabled,
+  },
+  search: {
+    semanticSearchEnabled:
+      serverConfig.experimentalFeatures.semanticSearch &&
+      serverConfig.embedding.enableAutoIndexing &&
+      serverConfig.embedding.isConfigured,
+  },
+  stripe: {
+    isConfigured: serverConfig.stripe.isConfigured,
   },
   legal: {
     termsOfServiceUrl: serverConfig.legal.termsOfServiceUrl,

@@ -3,8 +3,11 @@ import { useEffect } from "react";
 import { AppState, Platform } from "react-native";
 import { useRouter } from "expo-router";
 import { Stack } from "expo-router/stack";
+import BookmarkListHeader from "@/components/bookmarks/BookmarkListHeader";
+import { getFormSheetSurfaceOptions } from "@/lib/form-sheet-options";
 import { isIOS26 } from "@/lib/ios";
 import { useIsLoggedIn } from "@/lib/session";
+import { useColorScheme } from "@/lib/useColorScheme";
 import { focusManager } from "@tanstack/react-query";
 
 function onAppStateChange(status: AppStateStatus) {
@@ -15,6 +18,12 @@ function onAppStateChange(status: AppStateStatus) {
 
 export default function Dashboard() {
   const router = useRouter();
+  const { colors } = useColorScheme();
+  const formSheetSurfaceOptions = getFormSheetSurfaceOptions(colors.background);
+  const settingsScreenOptions = {
+    headerLargeTitle: false,
+    sheetGrabberVisible: true,
+  };
 
   const isLoggedIn = useIsLoggedIn();
   useEffect(() => {
@@ -58,6 +67,7 @@ export default function Dashboard() {
         options={{
           headerTitle: "⭐️ Favourites",
           headerBackTitle: "Back",
+          headerRight: () => <BookmarkListHeader />,
         }}
       />
       <Stack.Screen
@@ -71,6 +81,7 @@ export default function Dashboard() {
       <Stack.Screen
         name="bookmarks/new"
         options={{
+          ...formSheetSurfaceOptions,
           headerTitle: "New Bookmark",
           headerBackTitle: "Back",
           headerTransparent: false,
@@ -86,6 +97,7 @@ export default function Dashboard() {
       <Stack.Screen
         name="bookmarks/[slug]/manage_tags"
         options={{
+          ...formSheetSurfaceOptions,
           headerTitle: "Manage Tags",
           headerTransparent: false,
           headerLargeTitle: false,
@@ -100,6 +112,7 @@ export default function Dashboard() {
       <Stack.Screen
         name="bookmarks/[slug]/manage_lists"
         options={{
+          ...formSheetSurfaceOptions,
           headerTitle: "Manage Lists",
           headerTransparent: false,
           headerLargeTitle: false,
@@ -114,7 +127,22 @@ export default function Dashboard() {
       <Stack.Screen
         name="bookmarks/[slug]/info"
         options={{
+          ...formSheetSurfaceOptions,
           headerTitle: "Edit Bookmark",
+          headerTransparent: false,
+          headerLargeTitle: false,
+          presentation: Platform.select({
+            ios: "formSheet" as const,
+            default: "modal" as const,
+          }),
+          sheetGrabberVisible: true,
+        }}
+      />
+      <Stack.Screen
+        name="bookmarks/[slug]/highlights"
+        options={{
+          ...formSheetSurfaceOptions,
+          headerTitle: "Highlights",
           headerTransparent: false,
           headerLargeTitle: false,
           presentation: Platform.select({
@@ -127,6 +155,7 @@ export default function Dashboard() {
       <Stack.Screen
         name="lists/new"
         options={{
+          ...formSheetSurfaceOptions,
           headerTitle: "New List",
           headerBackTitle: "Back",
           headerLargeTitle: false,
@@ -141,7 +170,47 @@ export default function Dashboard() {
       <Stack.Screen
         name="lists/[slug]/edit"
         options={{
+          ...formSheetSurfaceOptions,
           headerTitle: "Edit List",
+          headerBackTitle: "Back",
+          headerLargeTitle: false,
+          headerTransparent: false,
+          presentation: Platform.select({
+            ios: "formSheet" as const,
+            default: "modal" as const,
+          }),
+          sheetGrabberVisible: true,
+        }}
+      />
+      <Stack.Screen
+        name="lists/select-parent"
+        options={{
+          headerTitle: "Parent List",
+          headerBackTitle: "Back",
+          headerLargeTitle: false,
+          headerTransparent: false,
+        }}
+      />
+      <Stack.Screen
+        name="tags/new"
+        options={{
+          ...formSheetSurfaceOptions,
+          headerTitle: "New Tag",
+          headerBackTitle: "Back",
+          headerLargeTitle: false,
+          headerTransparent: false,
+          presentation: Platform.select({
+            ios: "formSheet" as const,
+            default: "modal" as const,
+          }),
+          sheetGrabberVisible: true,
+        }}
+      />
+      <Stack.Screen
+        name="tags/[slug]/edit"
+        options={{
+          ...formSheetSurfaceOptions,
+          headerTitle: "Edit Tag",
           headerBackTitle: "Back",
           headerLargeTitle: false,
           headerTransparent: false,
@@ -157,24 +226,45 @@ export default function Dashboard() {
         options={{
           headerTitle: "🗄️ Archive",
           headerBackTitle: "Back",
+          headerRight: () => <BookmarkListHeader />,
         }}
       />
       <Stack.Screen
         name="settings/index"
         options={{
+          ...formSheetSurfaceOptions,
+          ...settingsScreenOptions,
           headerTitle: "Settings",
           headerTransparent: false,
-          headerLargeTitle: false,
           presentation: Platform.select({
             ios: "formSheet" as const,
             default: "modal" as const,
           }),
-          sheetGrabberVisible: true,
+          title: "Settings",
+        }}
+      />
+      <Stack.Screen
+        name="settings/reading"
+        options={{
+          ...settingsScreenOptions,
+          headerBackTitle: "Settings",
+          headerTitle: "Reader View",
+          title: "Reader View",
+        }}
+      />
+      <Stack.Screen
+        name="settings/uploads"
+        options={{
+          ...settingsScreenOptions,
+          headerBackTitle: "Settings",
+          headerTitle: "Uploads",
+          title: "Uploads",
         }}
       />
       <Stack.Screen
         name="settings/theme"
         options={{
+          ...settingsScreenOptions,
           title: "Theme",
           headerTitle: "Theme",
           headerBackTitle: "Back",
@@ -183,24 +273,45 @@ export default function Dashboard() {
       <Stack.Screen
         name="settings/bookmark-default-view"
         options={{
-          title: "Bookmark View Mode",
-          headerTitle: "Bookmark View Mode",
+          ...settingsScreenOptions,
+          title: "Open Bookmarks In",
+          headerTitle: "Open Bookmarks In",
           headerBackTitle: "Back",
         }}
       />
       <Stack.Screen
         name="settings/reader-settings"
         options={{
-          title: "Reader Settings",
-          headerTitle: "Reader Settings",
+          ...settingsScreenOptions,
+          title: "Text and Layout",
+          headerTitle: "Text and Layout",
+          headerBackTitle: "Back",
+        }}
+      />
+      <Stack.Screen
+        name="settings/offline"
+        options={{
+          ...settingsScreenOptions,
+          title: "Downloads",
+          headerTitle: "Downloads",
+          headerBackTitle: "Back",
+        }}
+      />
+      <Stack.Screen
+        name="settings/usage"
+        options={{
+          ...settingsScreenOptions,
+          title: "Statistics",
+          headerTitle: "Statistics",
           headerBackTitle: "Back",
         }}
       />
       <Stack.Screen
         name="settings/toolbar-settings"
         options={{
-          title: "Toolbar Buttons",
-          headerTitle: "Toolbar Buttons",
+          ...settingsScreenOptions,
+          title: "Reader Toolbar",
+          headerTitle: "Reader Toolbar",
           headerBackTitle: "Back",
         }}
       />

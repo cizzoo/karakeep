@@ -1,8 +1,9 @@
 import { Alert, Platform, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { router, Stack, useLocalSearchParams } from "expo-router";
+import { useBookmarkListLayoutMenu } from "@/components/bookmarks/BookmarkListHeader";
 import UpdatingBookmarkList from "@/components/bookmarks/UpdatingBookmarkList";
-import FullPageError from "@/components/FullPageError";
+import QueryPageState from "@/components/QueryPageState";
 import FullPageSpinner from "@/components/ui/FullPageSpinner";
 import { useArchiveFilter } from "@/lib/hooks";
 import { useColorScheme } from "@/lib/useColorScheme";
@@ -38,9 +39,9 @@ export default function ListView() {
           ),
         }}
       />
-      {error ? (
-        <FullPageError error={error.message} onRetry={() => refetch()} />
-      ) : list && !isSettingsLoading ? (
+      {!list ? (
+        <QueryPageState error={error} onRetry={() => refetch()} />
+      ) : !isSettingsLoading ? (
         <UpdatingBookmarkList
           query={{
             listId: list.id,
@@ -64,6 +65,7 @@ function ListActionsMenu({
   const api = useTRPC();
   const { colors } = useColorScheme();
   const { menuIconColor, destructiveMenuIconColor } = useMenuIconColors();
+  const { layoutActions, handleLayoutAction } = useBookmarkListLayoutMenu();
   const { mutate: deleteList } = useMutation(
     api.lists.delete.mutationOptions({
       onSuccess: () => {
@@ -143,6 +145,7 @@ function ListActionsMenu({
             ios: destructiveMenuIconColor,
           }),
         },
+        ...layoutActions,
         {
           id: "leave",
           title: "Leave List",
@@ -159,6 +162,10 @@ function ListActionsMenu({
         },
       ]}
       onPressAction={({ nativeEvent }) => {
+        if (handleLayoutAction(nativeEvent.event)) {
+          return;
+        }
+
         if (nativeEvent.event === "delete_list") {
           handleDelete();
         } else if (nativeEvent.event === "leave") {
