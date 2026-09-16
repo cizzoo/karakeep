@@ -12,6 +12,7 @@ export const API_KEY_SCOPE_RESOURCES = [
   "prompts",
   "rules",
   "tags",
+  "todoLists",
   "users",
   "webhooks",
   "importSessions",

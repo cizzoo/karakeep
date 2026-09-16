@@ -659,6 +659,48 @@
       "when": 1785586065846,
       "tag": "0093_reader_view_assessment",
       "breakpoints": true
+    },
+    {
+      "idx": 94,
+      "version": "6",
+      "when": 1789470847414,
+      "tag": "0094_add_todo_lists",
+      "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "6",
+      "when": 1789480026646,
+      "tag": "0095_add_tags_on_todo_lists",
+      "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "6",
+      "when": 1789480698686,
+      "tag": "0096_add_bookmarks_in_todo_lists",
+      "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "6",
+      "when": 1789483089105,
+      "tag": "0097_add_tags_on_todo_items",
+      "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "6",
+      "when": 1789483415515,
+      "tag": "0098_add_bookmarks_in_todo_items",
+      "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "6",
+      "when": 1789501456309,
+      "tag": "0099_add_tag_ownership_fk_on_todo",
+      "breakpoints": true
     }
   ]
 }

@@ -8,7 +8,6 @@ import {
   bookmarkAssets,
   bookmarkLinks,
   bookmarks,
-  bookmarkTags,
   bookmarkTexts,
   customPrompts,
   tagsOnBookmarks,
@@ -77,6 +76,7 @@ import {
 import { RuleEngine } from "../lib/ruleEngine";
 import { getBookmarkIdsFromMatcher } from "../lib/search";
 import { reciprocalRankFusion } from "../lib/searchRanking";
+import { ensureTagsExistByName, resolveTagIdentifiers } from "../lib/tags";
 import { Asset } from "../models/assets";
 import { BareBookmark, Bookmark } from "../models/bookmarks";
 import { WebhooksService } from "../models/webhooks.service";
@@ -1249,57 +1249,6 @@ export const bookmarksAppRouter = router({
     )
     .use(ensureBookmarkOwnership)
     .mutation(async ({ input, ctx }) => {
-      // Helper function to fetch tag IDs and their names from a list of tag identifiers
-      const fetchTagIdsWithNames = async (
-        tagIdentifiers: { tagId?: string; tagName?: string }[],
-      ): Promise<{ id: string; name: string }[]> => {
-        const tagIds = tagIdentifiers.flatMap((t) =>
-          t.tagId ? [t.tagId] : [],
-        );
-        const tagNames = tagIdentifiers.flatMap((t) =>
-          t.tagName ? [t.tagName] : [],
-        );
-
-        // Fetch tag IDs in parallel
-        const [byIds, byNames] = await Promise.all([
-          tagIds.length > 0
-            ? ctx.db
-                .select({ id: bookmarkTags.id, name: bookmarkTags.name })
-                .from(bookmarkTags)
-                .where(
-                  and(
-                    eq(bookmarkTags.userId, ctx.user.id),
-                    inArray(bookmarkTags.id, tagIds),
-                  ),
-                )
-            : Promise.resolve([]),
-          tagNames.length > 0
-            ? ctx.db
-                .select({ id: bookmarkTags.id, name: bookmarkTags.name })
-                .from(bookmarkTags)
-                .where(
-                  and(
-                    eq(bookmarkTags.userId, ctx.user.id),
-                    inArray(bookmarkTags.name, tagNames),
-                  ),
-                )
-            : Promise.resolve([]),
-        ]);
-
-        // Union results and deduplicate by tag ID
-        const seen = new Set<string>();
-        const results: { id: string; name: string }[] = [];
-
-        for (const tag of [...byIds, ...byNames]) {
-          if (!seen.has(tag.id)) {
-            seen.add(tag.id);
-            results.push({ id: tag.id, name: tag.name });
-          }
-        }
-
-        return results;
-      };
-
       // Normalize tag names and create new tags outside transaction to reduce transaction duration
       const normalizedAttachTags = input.attach.map((tag) => ({
         tagId: tag.tagId,
@@ -1307,26 +1256,16 @@ export const bookmarksAppRouter = router({
         attachedBy: tag.attachedBy,
       }));
 
-      {
-        // Create new tags
-        const toAddTagNames = normalizedAttachTags
-          .flatMap((i) => (i.tagName ? [i.tagName] : []))
-          .filter((n) => n.length > 0); // drop empty results
-
-        if (toAddTagNames.length > 0) {
-          await ctx.db
-            .insert(bookmarkTags)
-            .values(
-              toAddTagNames.map((name) => ({ name, userId: ctx.user.id })),
-            )
-            .onConflictDoNothing();
-        }
-      }
+      // Create new tags (reuses an existing row by name instead of duplicating it)
+      const toAddTagNames = normalizedAttachTags
+        .flatMap((i) => (i.tagName ? [i.tagName] : []))
+        .filter((n) => n.length > 0); // drop empty results
+      await ensureTagsExistByName(ctx.db, ctx.user.id, toAddTagNames);
 
       // Fetch tag IDs for attachment/detachment now that we know that they all exist
       const [attachTagsWithNames, detachTagsWithNames] = await Promise.all([
-        fetchTagIdsWithNames(normalizedAttachTags),
-        fetchTagIdsWithNames(input.detach),
+        resolveTagIdentifiers(ctx.db, ctx.user.id, normalizedAttachTags),
+        resolveTagIdentifiers(ctx.db, ctx.user.id, input.detach),
       ]);
 
       // Build the attachedBy map from the fetched results

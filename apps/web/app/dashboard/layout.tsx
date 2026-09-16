@@ -15,6 +15,7 @@ import {
   ClipboardList,
   Highlighter,
   Home,
+  ListTodo,
   Search,
   Tag,
 } from "lucide-react";
@@ -80,6 +81,11 @@ export default async function Dashboard({
         name: t("common.highlights"),
         icon: <Highlighter size={18} />,
         path: "/dashboard/highlights",
+      },
+      {
+        name: t("common.todos"),
+        icon: <ListTodo size={18} />,
+        path: "/dashboard/todos",
       },
       {
         name: t("common.archive"),

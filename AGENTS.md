@@ -53,6 +53,7 @@ The project is organized into `apps` and `packages`:
 
 - This project uses shadcn/ui. The shadcn components in the web app are in `packages/web/components/ui`.
 - This project uses Tailwind CSS.
+- Before adding or changing any UI in `apps/web`, read `AGENT-STYLE.md` — it documents the theming, component, and styling conventions to match.
 - For the mobile app, we use [expo](https://expo.dev/).
 
 ### Common Commands

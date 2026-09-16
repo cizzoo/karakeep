@@ -540,6 +540,176 @@ export const bookmarkLists = sqliteTable(
   ],
 );
 
+export const todoLists = sqliteTable(
+  "todoLists",
+  {
+    id: text("id")
+      .notNull()
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    name: text("name").notNull(),
+    icon: text("icon").notNull().default("📋"),
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: createdAtField(),
+    modifiedAt: modifiedAtField(),
+  },
+  (tl) => [index("todoLists_userId_idx").on(tl.userId)],
+);
+
+export const todoItems = sqliteTable(
+  "todoItems",
+  {
+    id: text("id")
+      .notNull()
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    todoListId: text("todoListId")
+      .notNull()
+      .references(() => todoLists.id, { onDelete: "cascade" }),
+    text: text("text").notNull(),
+    done: integer("done", { mode: "boolean" }).notNull().default(false),
+    position: real("position").notNull(),
+    createdAt: createdAtField(),
+    modifiedAt: modifiedAtField(),
+  },
+  (ti) => [index("todoItems_todoListId_idx").on(ti.todoListId)],
+);
+
+// Todo lists reuse the exact same tag pool bookmarks use (`bookmarkTags`) -
+// this is intentionally not a separate "todo tags" table.
+export const tagsOnTodoLists = sqliteTable(
+  "tagsOnTodoLists",
+  {
+    todoListId: text("todoListId")
+      .notNull()
+      .references(() => todoLists.id, { onDelete: "cascade" }),
+    tagId: text("tagId")
+      .notNull()
+      .references(() => bookmarkTags.id, { onDelete: "cascade" }),
+    // Denormalized from the owning todo list, purely so the composite FK
+    // below can enforce (at the DB level) that the tag belongs to the same
+    // user as the list - mirrors ruleEngineRulesTable/ruleEngineActionsTable.
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+
+    attachedAt: integer("attachedAt", { mode: "timestamp" }).$defaultFn(
+      () => new Date(),
+    ),
+  },
+  (tb) => [
+    primaryKey({ columns: [tb.todoListId, tb.tagId] }),
+    index("tagsOnTodoLists_tagId_idx").on(tb.tagId),
+    index("tagsOnTodoLists_todoListId_idx").on(tb.todoListId),
+    // Ensures the attached tag belongs to the same user as the todo list.
+    foreignKey({
+      columns: [tb.userId, tb.tagId],
+      foreignColumns: [bookmarkTags.userId, bookmarkTags.id],
+      name: "tagsOnTodoLists_userId_tagId_fk",
+    }).onDelete("cascade"),
+  ],
+);
+
+// Todo items reuse the exact same tag pool bookmarks/todo lists use (`bookmarkTags`) -
+// this is intentionally not a separate "todo item tags" table.
+export const tagsOnTodoItems = sqliteTable(
+  "tagsOnTodoItems",
+  {
+    todoItemId: text("todoItemId")
+      .notNull()
+      .references(() => todoItems.id, { onDelete: "cascade" }),
+    tagId: text("tagId")
+      .notNull()
+      .references(() => bookmarkTags.id, { onDelete: "cascade" }),
+    // Denormalized from the owning todo item's list, purely so the composite
+    // FK below can enforce (at the DB level) that the tag belongs to the
+    // same user as the item - mirrors ruleEngineRulesTable/ruleEngineActionsTable.
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+
+    attachedAt: integer("attachedAt", { mode: "timestamp" }).$defaultFn(
+      () => new Date(),
+    ),
+  },
+  (tb) => [
+    primaryKey({ columns: [tb.todoItemId, tb.tagId] }),
+    index("tagsOnTodoItems_tagId_idx").on(tb.tagId),
+    index("tagsOnTodoItems_todoItemId_idx").on(tb.todoItemId),
+    // Ensures the attached tag belongs to the same user as the todo item.
+    foreignKey({
+      columns: [tb.userId, tb.tagId],
+      foreignColumns: [bookmarkTags.userId, bookmarkTags.id],
+      name: "tagsOnTodoItems_userId_tagId_fk",
+    }).onDelete("cascade"),
+  ],
+);
+
+// Links a todo list to existing bookmarks (forward direction only for now:
+// a todo list knows which bookmarks it links to, but bookmarks don't yet
+// surface which todo lists reference them in their own UI - that's a
+// separate, deferred piece of work). Modeled as an ordinary many-to-many
+// join table (like `bookmarksInLists`, minus the collaborator-specific
+// `listMembershipId` column todo lists have no equivalent of) so a reverse
+// lookup (bookmark -> todo lists) is a cheap query to add later.
+export const bookmarksInTodoLists = sqliteTable(
+  "bookmarksInTodoLists",
+  {
+    bookmarkId: text("bookmarkId")
+      .notNull()
+      .references(() => bookmarks.id, { onDelete: "cascade" }),
+    todoListId: text("todoListId")
+      .notNull()
+      .references(() => todoLists.id, { onDelete: "cascade" }),
+    addedAt: integer("addedAt", { mode: "timestamp" }).$defaultFn(
+      () => new Date(),
+    ),
+  },
+  (tb) => [
+    primaryKey({ columns: [tb.bookmarkId, tb.todoListId] }),
+    index("bookmarksInTodoLists_bookmarkId_idx").on(tb.bookmarkId),
+    index("bookmarksInTodoLists_todoListId_idx").on(tb.todoListId),
+    // Composite index for list-first queries (when filtering by todoListId)
+    index("bookmarksInTodoLists_todoListId_bookmarkId_idx").on(
+      tb.todoListId,
+      tb.bookmarkId,
+    ),
+  ],
+);
+
+// Links a todo item to existing bookmarks (forward direction only for now,
+// same as `bookmarksInTodoLists` one level up: an item knows which
+// bookmarks it links to, but bookmarks don't yet surface which todo items
+// reference them in their own UI - that's deferred). Modeled the same way
+// as `bookmarksInTodoLists` so a reverse lookup (bookmark -> todo items) is
+// a cheap query to add later.
+export const bookmarksInTodoItems = sqliteTable(
+  "bookmarksInTodoItems",
+  {
+    bookmarkId: text("bookmarkId")
+      .notNull()
+      .references(() => bookmarks.id, { onDelete: "cascade" }),
+    todoItemId: text("todoItemId")
+      .notNull()
+      .references(() => todoItems.id, { onDelete: "cascade" }),
+    addedAt: integer("addedAt", { mode: "timestamp" }).$defaultFn(
+      () => new Date(),
+    ),
+  },
+  (tb) => [
+    primaryKey({ columns: [tb.bookmarkId, tb.todoItemId] }),
+    index("bookmarksInTodoItems_bookmarkId_idx").on(tb.bookmarkId),
+    index("bookmarksInTodoItems_todoItemId_idx").on(tb.todoItemId),
+    // Composite index for item-first queries (when filtering by todoItemId)
+    index("bookmarksInTodoItems_todoItemId_bookmarkId_idx").on(
+      tb.todoItemId,
+      tb.bookmarkId,
+    ),
+  ],
+);
+
 export const bookmarksInLists = sqliteTable(
   "bookmarksInLists",
   {
@@ -1091,6 +1261,8 @@ export const bookmarkRelations = relations(bookmarks, ({ many, one }) => ({
   }),
   tagsOnBookmarks: many(tagsOnBookmarks),
   bookmarksInLists: many(bookmarksInLists),
+  bookmarksInTodoLists: many(bookmarksInTodoLists),
+  bookmarksInTodoItems: many(bookmarksInTodoItems),
   assets: many(assets),
   rssFeeds: many(rssFeedImportsTable),
   importSessionBookmarks: many(importSessionBookmarks),
@@ -1111,6 +1283,8 @@ export const bookmarkTagsRelations = relations(
       references: [users.id],
     }),
     tagsOnBookmarks: many(tagsOnBookmarks),
+    tagsOnTodoLists: many(tagsOnTodoLists),
+    tagsOnTodoItems: many(tagsOnTodoItems),
   }),
 );
 
@@ -1148,6 +1322,81 @@ export const bookmarkListsRelations = relations(
     parent: one(bookmarkLists, {
       fields: [bookmarkLists.parentId],
       references: [bookmarkLists.id],
+    }),
+  }),
+);
+
+export const todoListsRelations = relations(todoLists, ({ one, many }) => ({
+  user: one(users, {
+    fields: [todoLists.userId],
+    references: [users.id],
+  }),
+  items: many(todoItems),
+  tagsOnTodoLists: many(tagsOnTodoLists),
+  bookmarksInTodoLists: many(bookmarksInTodoLists),
+}));
+
+export const todoItemsRelations = relations(todoItems, ({ one, many }) => ({
+  todoList: one(todoLists, {
+    fields: [todoItems.todoListId],
+    references: [todoLists.id],
+  }),
+  tagsOnTodoItems: many(tagsOnTodoItems),
+  bookmarksInTodoItems: many(bookmarksInTodoItems),
+}));
+
+export const tagsOnTodoListsRelations = relations(
+  tagsOnTodoLists,
+  ({ one }) => ({
+    tag: one(bookmarkTags, {
+      fields: [tagsOnTodoLists.tagId],
+      references: [bookmarkTags.id],
+    }),
+    todoList: one(todoLists, {
+      fields: [tagsOnTodoLists.todoListId],
+      references: [todoLists.id],
+    }),
+  }),
+);
+
+export const tagsOnTodoItemsRelations = relations(
+  tagsOnTodoItems,
+  ({ one }) => ({
+    tag: one(bookmarkTags, {
+      fields: [tagsOnTodoItems.tagId],
+      references: [bookmarkTags.id],
+    }),
+    todoItem: one(todoItems, {
+      fields: [tagsOnTodoItems.todoItemId],
+      references: [todoItems.id],
+    }),
+  }),
+);
+
+export const bookmarksInTodoListsRelations = relations(
+  bookmarksInTodoLists,
+  ({ one }) => ({
+    bookmark: one(bookmarks, {
+      fields: [bookmarksInTodoLists.bookmarkId],
+      references: [bookmarks.id],
+    }),
+    todoList: one(todoLists, {
+      fields: [bookmarksInTodoLists.todoListId],
+      references: [todoLists.id],
+    }),
+  }),
+);
+
+export const bookmarksInTodoItemsRelations = relations(
+  bookmarksInTodoItems,
+  ({ one }) => ({
+    bookmark: one(bookmarks, {
+      fields: [bookmarksInTodoItems.bookmarkId],
+      references: [bookmarks.id],
+    }),
+    todoItem: one(todoItems, {
+      fields: [bookmarksInTodoItems.todoItemId],
+      references: [todoItems.id],
     }),
   }),
 );
