@@ -701,6 +701,13 @@
       "when": 1789501456309,
       "tag": "0099_add_tag_ownership_fk_on_todo",
       "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "6",
+      "when": 1791283667209,
+      "tag": "0100_add_page_annotations",
+      "breakpoints": true
     }
   ]
 }

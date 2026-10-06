@@ -9,6 +9,7 @@ export const API_KEY_SCOPE_RESOURCES = [
   "feeds",
   "highlights",
   "lists",
+  "pageAnnotations",
   "prompts",
   "rules",
   "tags",

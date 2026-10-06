@@ -56,6 +56,12 @@ const RESOURCE_TRANSLATION_KEYS = {
     descriptionKey: "settings.api_keys.scopes.resources.lists.description",
     hidden: false,
   },
+  pageAnnotations: {
+    labelKey: "settings.api_keys.scopes.resources.pageAnnotations.label",
+    descriptionKey:
+      "settings.api_keys.scopes.resources.pageAnnotations.description",
+    hidden: true,
+  },
   prompts: {
     labelKey: "settings.api_keys.scopes.resources.prompts.label",
     descriptionKey: "settings.api_keys.scopes.resources.prompts.description",

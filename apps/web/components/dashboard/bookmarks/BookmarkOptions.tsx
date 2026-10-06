@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -22,6 +23,7 @@ import {
   Download,
   FileDown,
   FileText,
+  HighlighterIcon,
   ImagePlus,
   Link,
   List,
@@ -88,6 +90,7 @@ function isSubsectionItem(item: ActionItemType): item is SubsectionItem {
 
 export default function BookmarkOptions({ bookmark }: { bookmark: ZBookmark }) {
   const { t } = useTranslation();
+  const router = useRouter();
   const linkId = bookmark.id;
   const { data: session } = useSession();
 
@@ -317,6 +320,14 @@ export default function BookmarkOptions({ bookmark }: { bookmark: ZBookmark }) {
         );
         toast.success(t("toasts.bookmarks.clipboard_copied"));
       },
+    },
+    {
+      id: "annotate",
+      title: t("actions.annotate"),
+      icon: <HighlighterIcon className="mr-2 size-4" />,
+      visible: isOwner && bookmark.content.type === BookmarkTypes.LINK,
+      disabled: false,
+      onClick: () => router.push(`/annotate/${bookmark.id}`),
     },
     {
       id: "manage-lists",
