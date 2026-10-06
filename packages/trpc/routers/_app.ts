@@ -10,6 +10,7 @@ import { highlightsAppRouter } from "./highlights";
 import { importSessionsRouter } from "./importSessions";
 import { invitesAppRouter } from "./invites";
 import { listsAppRouter } from "./lists";
+import { archiveTranslationsAppRouter } from "./archiveTranslations";
 import { pageAnnotationsAppRouter } from "./pageAnnotations";
 import { promptsAppRouter } from "./prompts";
 import { publicBookmarks } from "./publicBookmarks";
@@ -33,6 +34,7 @@ export const appRouter = router({
   backups: backupsAppRouter,
   highlights: highlightsAppRouter,
   pageAnnotations: pageAnnotationsAppRouter,
+  archiveTranslations: archiveTranslationsAppRouter,
   importSessions: importSessionsRouter,
   webhooks: webhooksAppRouter,
   assets: assetsAppRouter,

@@ -134,6 +134,29 @@
       "mode_read": "Read",
       "mode_annotate": "Annotate"
     },
+    "translation": {
+      "translate": "Translate to English",
+      "retry": "Translation failed, retry",
+      "warming_up": "Warming up model…",
+      "progress": "Translating {{done}}/{{total}}",
+      "cancel": "Cancel",
+      "translated": "Translated",
+      "translated_details": "Translated on {{date}} with {{model}}",
+      "untranslated_one": "{{count}} passage left untranslated",
+      "untranslated_other": "{{count}} passages left untranslated",
+      "toasts": {
+        "start_failed": "Failed to start the translation",
+        "cancel_failed": "Failed to cancel the translation"
+      },
+      "dialog": {
+        "title": "Translate this page to English?",
+        "description": "The archived page will be permanently replaced by its English translation. The original archive will be deleted.",
+        "recovery": "To get the original back, save the page again with SingleFile (or re-crawl the bookmark, for archives made by the crawler).",
+        "annotations_warning_one": "This page has {{count}} annotation. It will be kept, but will most likely no longer match the translated text and show as unanchored.",
+        "annotations_warning_other": "This page has {{count}} annotations. They will be kept, but will most likely no longer match the translated text and show as unanchored.",
+        "confirm": "Translate"
+      }
+    },
     "popover": {
       "highlight_with_comment": "Highlight and add a comment"
     },
@@ -414,6 +437,10 @@
           "lists": {
             "label": "Lists",
             "description": "Manage lists and list membership."
+          },
+          "archiveTranslations": {
+            "label": "Archive Translations",
+            "description": "Translate archived bookmarks."
           },
           "pageAnnotations": {
             "label": "Page Annotations",

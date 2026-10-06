@@ -7,7 +7,7 @@ The app is mainly configured by environment variables. All the used environment 
 | PORT                                   | No                                    | 3000            | The port on which the web server will listen. DON'T CHANGE THIS IF YOU'RE USING DOCKER, instead changed the docker bound external port.                                                                                                                                                                                                          |
 | WORKERS_PORT                           | No                                    | 0 (Random Port) | The port on which the worker will export its prometheus metrics on `/metrics`. By default it's a random unused port. If you want to utilize those metrics, fix the port to a value (and export it in docker if you're using docker).                                                                                                             |
 | WORKERS_HOST                           | No                                    | 127.0.0.1       | Host to listen to for requests to WORKERS_PORT. You will need to set this if running in a container, since localhost will not be reachable from outside                                                                                                                                                                                          |
-| WORKERS_ENABLED_WORKERS                | No                                    | Not set         | Comma separated list of worker names to enable. If set, only these workers will run. Valid values: crawler,inference,search,adminMaintenance,video,feed,assetPreprocessing,webhook,ruleEngine,backup. All available workers are listed in [apps/workers/index.ts](https://github.com/karakeep-app/karakeep/blob/main/apps/workers/index.ts#L39). |
+| WORKERS_ENABLED_WORKERS                | No                                    | Not set         | Comma separated list of worker names to enable. If set, only these workers will run. Valid values: crawler,inference,search,adminMaintenance,video,translation,feed,assetPreprocessing,webhook,ruleEngine,backup. All available workers are listed in [apps/workers/index.ts](https://github.com/karakeep-app/karakeep/blob/main/apps/workers/index.ts#L39). |
 | WORKERS_DISABLED_WORKERS               | No                                    | Not set         | Comma separated list of worker names to disable. Takes precedence over `WORKERS_ENABLED_WORKERS`.                                                                                                                                                                                                                                                |
 | LOG_LEVEL                              | No                                    | debug           | The application log level as defined in the [winston documentation](https://github.com/winstonjs/winston?tab=readme-ov-file#logging-levels). You may want to set this to `notice` or `warning` when running Karakeep in a production environment.                                                                                                |
 | DATA_DIR                               | Yes                                   | Not set         | The path for the persistent data directory. This is where the db lives. Assets are stored here by default unless `ASSETS_DIR` is set.                                                                                                                                                                                                            |
@@ -204,6 +204,35 @@ Karakeep uses [tesseract.js](https://github.com/naptha/tesseract.js) to extract 
 | OCR_LANGS                | No       | eng       | Comma separated list of the language codes that you want tesseract to support. You can find the language codes [here](https://tesseract-ocr.github.io/tessdoc/Data-Files-in-different-versions.html). Set to empty string to disable OCR.                                                                     |
 | OCR_CONFIDENCE_THRESHOLD | No       | 50        | A number between 0 and 100 indicating the minimum acceptable confidence from tessaract. If tessaract's confidence is lower than this value, extracted text won't be stored.                                                                                                                                   |
 | OCR_USE_LLM              | No       | false     | If set to true, uses the configured inference model (OpenAI or Ollama) for OCR instead of Tesseract. This can provide better results for complex images but requires a configured inference provider (`OPENAI_API_KEY` or `OLLAMA_BASE_URL`). Falls back to Tesseract if no inference provider is configured. |
+
+## Translation Configs
+
+Optional "translate archived page" feature. It sends the text of a page archive (SingleFile or full-page archive) to a self-hosted OpenAI-compatible translation model and replaces the stored archive with the translated copy. The feature is disabled unless both `TRANSLATION_BASE_URL` and `TRANSLATION_API_KEY` are set. These settings are independent of the `OPENAI_*` / `INFERENCE_*` ones, and they are only read by the workers (the API key is never sent to the browser).
+
+| Name                            | Required | Default    | Description                                                                                                                  |
+| ------------------------------- | -------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| TRANSLATION_BASE_URL            | No       | Not set    | Base URL of the OpenAI-compatible endpoint, ending in `/v1` (e.g. `http://100.x.y.z:8080/v1`).                               |
+| TRANSLATION_API_KEY             | No       | Not set    | Bearer token for the translation endpoint.                                                                                   |
+| TRANSLATION_MODEL               | No       | translator | Model name sent in requests.                                                                                                 |
+| TRANSLATION_TARGET_LANGUAGE     | No       | English    | Target language used in the prompt.                                                                                          |
+| TRANSLATION_TEMPERATURE         | No       | 0.3        | Sampling temperature.                                                                                                        |
+| TRANSLATION_MAX_CONCURRENCY     | No       | 2          | Maximum concurrent requests to the translator (process-wide). Match the server's parallel slots.                             |
+| TRANSLATION_REQUEST_TIMEOUT_SEC | No       | 300        | Per-request timeout. The first request after the model was unloaded can take a while.                                        |
+| TRANSLATION_BATCH_TOKEN_BUDGET  | No       | 1500       | Approximate source tokens per request.                                                                                       |
+| TRANSLATION_MAX_OUTPUT_TOKENS   | No       | 6000       | Upper bound for output tokens per request.                                                                                   |
+| TRANSLATION_MAX_UNITS           | No       | 8000       | Pages with more translatable text blocks than this are refused.                                                              |
+| TRANSLATION_MAX_HTML_SIZE_MB    | No       | 50         | Archives larger than this are refused.                                                                                       |
+| TRANSLATION_JOB_TIMEOUT_SEC     | No       | 3600       | Timeout of a whole translation job.                                                                                          |
+
+Notes:
+
+- The translation is one-way: the original archive is deleted once the translated one is stored. For a page that was saved with SingleFile, the original can only be restored by saving the page again with SingleFile. Existing page annotations are kept, but may no longer match the translated text.
+- The workers container must be able to reach the translation server. If it is only reachable over Tailscale, either run the Karakeep host on the tailnet (outbound traffic from the default bridge network to `100.x.y.z` normally works; prefer the IP over MagicDNS names, which may not resolve inside containers), or add a Tailscale sidecar / host networking for the workers container. To check connectivity:
+
+  ```bash
+  docker compose exec workers wget -qO- http://<translator-ip>:<port>/health
+  # expected output: OK
+  ```
 
 ## Webhook Configs
 

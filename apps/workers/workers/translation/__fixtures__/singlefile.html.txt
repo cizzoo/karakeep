@@ -1,0 +1,5 @@
+<!DOCTYPE html> <html lang="zh"><!--
+ Page saved with SingleFile
+ url: https://example.com/post
+ saved date: Mon Oct 06 2026 10:00:00 GMT+0000
+--><head><meta charset="utf-8"><title>测试页面标题</title><link rel="icon" href="data:image/png;base64,iVBORw0KGgo="><style>.a{background:url(data:image/png;base64,AAAA)}</style></head><body><article><h2>这是一个标题行</h2><p>这是一段用于测试的正文内容，包含<a href="https://example.com/">一个链接</a>。</p><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="示例图片说明"></article><script>window.x = "中文";</script></body></html>

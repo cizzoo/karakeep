@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html><head><title>My Page</title></head>
+<body>
+<p>Call <a href="https://example.com/a?x=1&amp;y=2">the function</a> with <code>foo(a &lt; b)</code> now.</p>
+<p>Image: <img src="x.png" alt="a chart"> and <span class="k">nested <em>deep <strong>text</strong></em></span> done.</p>
+<pre>keep   this
+   as is</pre>
+<p>Second paragraph &amp; more.</p>
+<script>var a = 1 < 2;</script>
+</body></html>

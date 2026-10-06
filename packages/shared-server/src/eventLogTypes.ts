@@ -70,6 +70,11 @@ type EventLogInternal =
       "bookmark.id"?: string;
     }
   | {
+      ["event.name"]: "translationWorker.run";
+      "bookmark.id"?: string;
+      "translation.id"?: string;
+    }
+  | {
       ["event.name"]: "webhookWorker.run";
       "bookmark.id"?: string;
       "webhook.operation"?: string;

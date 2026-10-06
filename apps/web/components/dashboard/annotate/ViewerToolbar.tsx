@@ -16,6 +16,10 @@ import {
   HighlighterIcon,
 } from "lucide-react";
 
+import type { ZTranslationStatus } from "@karakeep/shared/types/archiveTranslations";
+
+import TranslateArchiveControl from "./TranslateArchiveControl";
+
 export default function ViewerToolbar({
   bookmarkId,
   bookmarkTitle,
@@ -24,6 +28,8 @@ export default function ViewerToolbar({
   onModeChange,
   annotationCount,
   onCopyMarkdown,
+  translationStatus,
+  annotateDisabled,
 }: {
   bookmarkId: string;
   bookmarkTitle: string;
@@ -32,6 +38,8 @@ export default function ViewerToolbar({
   onModeChange: (mode: "read" | "annotate") => void;
   annotationCount: number;
   onCopyMarkdown: () => void;
+  translationStatus: ZTranslationStatus | null | undefined;
+  annotateDisabled: boolean;
 }) {
   const { t } = useTranslation();
 
@@ -91,6 +99,11 @@ export default function ViewerToolbar({
             {t("annotations.toolbar.copy_markdown")}
           </TooltipContent>
         </Tooltip>
+        <TranslateArchiveControl
+          bookmarkId={bookmarkId}
+          status={translationStatus}
+          annotationCount={annotationCount}
+        />
         <div className="flex items-center rounded-md border p-0.5">
           <Button
             variant={mode === "read" ? "default" : "ghost"}
@@ -105,6 +118,7 @@ export default function ViewerToolbar({
             variant={mode === "annotate" ? "default" : "ghost"}
             size="sm"
             className="h-7 gap-1.5 px-2"
+            disabled={annotateDisabled}
             onClick={() => onModeChange("annotate")}
           >
             <HighlighterIcon className="size-3.5" />

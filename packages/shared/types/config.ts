@@ -28,6 +28,9 @@ export const zClientConfigSchema = z.object({
   chat: z.object({
     enabled: z.boolean(),
   }),
+  translation: z.object({
+    enabled: z.boolean(),
+  }),
   search: z.object({
     semanticSearchEnabled: z.boolean(),
   }),

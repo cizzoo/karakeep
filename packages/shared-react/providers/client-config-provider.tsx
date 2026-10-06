@@ -20,6 +20,9 @@ export const DEFAULT_CLIENT_CONFIG: ZClientConfig = {
   chat: {
     enabled: false,
   },
+  translation: {
+    enabled: false,
+  },
   search: {
     semanticSearchEnabled: false,
   },

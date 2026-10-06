@@ -20,6 +20,7 @@ import {
   shutdownEventLogger,
   shutdownTracing,
   startQueue,
+  TranslationQueue,
   VideoWorkerQueue,
   WebhookQueue,
 } from "@karakeep/shared-server";
@@ -72,6 +73,11 @@ const workerBuilders = {
     const { VideoWorker } = await import("./workers/videoWorker");
     await VideoWorkerQueue.ensureInit();
     return VideoWorker.build();
+  },
+  translation: async () => {
+    const { TranslationWorker } = await import("./workers/translationWorker");
+    await TranslationQueue.ensureInit();
+    return TranslationWorker.build();
   },
   feed: async () => {
     const { FeedRefreshingWorker, FeedWorker } =

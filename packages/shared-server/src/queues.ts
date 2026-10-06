@@ -260,6 +260,23 @@ export const VideoWorkerQueue = createDeferredQueue<ZVideoRequest>(
   },
 );
 
+// Archive translation worker
+export const zTranslationRequestSchema = z.object({
+  translationId: z.string(),
+});
+export type ZTranslationRequest = z.infer<typeof zTranslationRequestSchema>;
+
+export const TranslationQueue = createDeferredQueue<ZTranslationRequest>(
+  "archive_translation_queue",
+  {
+    defaultJobArgs: {
+      // The translator client already retries per request.
+      numRetries: 1,
+    },
+    keepFailedJobs: false,
+  },
+);
+
 // Feed Worker
 export const zFeedRequestSchema = z.object({
   feedId: z.string(),

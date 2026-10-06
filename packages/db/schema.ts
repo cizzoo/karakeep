@@ -444,6 +444,51 @@ export const pageAnnotations = sqliteTable(
   ],
 );
 
+export const archiveTranslations = sqliteTable(
+  "archiveTranslations",
+  {
+    id: text("id")
+      .notNull()
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    bookmarkId: text("bookmarkId")
+      .notNull()
+      .references(() => bookmarks.id, {
+        onDelete: "cascade",
+      }),
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    targetLanguage: text("targetLanguage").notNull().default("en"),
+    // No FKs on the asset ids: the original is deleted after the swap.
+    originalAssetId: text("originalAssetId").notNull(),
+    translatedAssetId: text("translatedAssetId"),
+    status: text("status", {
+      enum: ["pending", "running", "done", "failed", "cancelled"],
+    })
+      .notNull()
+      .default("pending"),
+    phase: text("phase", {
+      enum: ["warming_up", "translating", "saving"],
+    }),
+    progressDone: integer("progressDone").notNull().default(0),
+    progressTotal: integer("progressTotal").notNull().default(0),
+    failedUnits: integer("failedUnits").notNull().default(0),
+    model: text("model").notNull(),
+    promptVersion: integer("promptVersion").notNull(),
+    error: text("error"),
+    createdAt: createdAtField(),
+    modifiedAt: modifiedAtField(),
+  },
+  (tb) => [
+    unique("archiveTranslations_bookmarkId_targetLanguage_unique").on(
+      tb.bookmarkId,
+      tb.targetLanguage,
+    ),
+    index("archiveTranslations_userId_idx").on(tb.userId),
+  ],
+);
+
 export const userReadingProgress = sqliteTable(
   "userReadingProgress",
   {

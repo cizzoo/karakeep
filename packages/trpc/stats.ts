@@ -15,6 +15,7 @@ import {
   OpenAIQueue,
   RuleEngineQueue,
   SearchIndexingQueue,
+  TranslationQueue,
   VideoWorkerQueue,
   WebhookQueue,
 } from "@karakeep/shared-server";
@@ -45,6 +46,7 @@ const queuePendingJobsGauge = getOrCreateMetric(
           { name: "search_indexing", queue: SearchIndexingQueue },
           { name: "admin_maintenance", queue: AdminMaintenanceQueue },
           { name: "video_worker", queue: VideoWorkerQueue },
+          { name: "archive_translation", queue: TranslationQueue },
           { name: "feed", queue: FeedQueue },
           { name: "asset_preprocessing", queue: AssetPreprocessingQueue },
           { name: "webhook", queue: WebhookQueue },

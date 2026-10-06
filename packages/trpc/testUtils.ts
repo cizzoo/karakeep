@@ -15,6 +15,7 @@ const testQueueMocks = vi.hoisted(() => ({
   openAIEnqueue: vi.fn(),
   ruleEngineEnqueue: vi.fn(),
   searchIndexingEnqueue: vi.fn(),
+  translationEnqueue: vi.fn(),
   triggerSearchReindex: vi.fn(),
 }));
 
@@ -137,6 +138,9 @@ export function defaultBeforeEach(seedDB = true) {
         },
         SearchIndexingQueue: {
           enqueue: testQueueMocks.searchIndexingEnqueue,
+        },
+        TranslationQueue: {
+          enqueue: testQueueMocks.translationEnqueue,
         },
         RuleEngineQueue: {
           enqueue: testQueueMocks.ruleEngineEnqueue,

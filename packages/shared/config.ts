@@ -83,6 +83,26 @@ const allEnv = z.object({
     .optional(),
   OLLAMA_BASE_URL: z.string().url().optional(),
   OLLAMA_KEEP_ALIVE: z.string().optional(),
+  TRANSLATION_BASE_URL: z.string().url().optional(),
+  TRANSLATION_API_KEY: z.string().optional(),
+  TRANSLATION_MODEL: z.string().default("translator"),
+  TRANSLATION_TARGET_LANGUAGE: z.string().default("English"),
+  TRANSLATION_TEMPERATURE: z.coerce.number().default(0.3),
+  TRANSLATION_MAX_CONCURRENCY: z.coerce.number().int().positive().default(2),
+  TRANSLATION_REQUEST_TIMEOUT_SEC: z.coerce.number().positive().default(300),
+  TRANSLATION_BATCH_TOKEN_BUDGET: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(1500),
+  TRANSLATION_MAX_OUTPUT_TOKENS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(6000),
+  TRANSLATION_MAX_UNITS: z.coerce.number().int().positive().default(8000),
+  TRANSLATION_MAX_HTML_SIZE_MB: z.coerce.number().positive().default(50),
+  TRANSLATION_JOB_TIMEOUT_SEC: z.coerce.number().positive().default(3600),
   CHAT_ENABLED: stringBool("false"),
   CHAT_MODEL: z.string().optional(),
   SEMANTIC_SEARCH_ENABLED: stringBool("true"),
@@ -374,6 +394,21 @@ const serverConfigSchema = allEnv.transform((val, ctx) => {
     chat: {
       enabled: val.CHAT_ENABLED,
     },
+    translation: {
+      enabled: !!val.TRANSLATION_BASE_URL && !!val.TRANSLATION_API_KEY,
+      baseUrl: val.TRANSLATION_BASE_URL,
+      apiKey: val.TRANSLATION_API_KEY,
+      model: val.TRANSLATION_MODEL,
+      targetLanguage: val.TRANSLATION_TARGET_LANGUAGE,
+      temperature: val.TRANSLATION_TEMPERATURE,
+      maxConcurrency: val.TRANSLATION_MAX_CONCURRENCY,
+      requestTimeoutSec: val.TRANSLATION_REQUEST_TIMEOUT_SEC,
+      batchTokenBudget: val.TRANSLATION_BATCH_TOKEN_BUDGET,
+      maxOutputTokens: val.TRANSLATION_MAX_OUTPUT_TOKENS,
+      maxUnits: val.TRANSLATION_MAX_UNITS,
+      maxHtmlSizeMb: val.TRANSLATION_MAX_HTML_SIZE_MB,
+      jobTimeoutSec: val.TRANSLATION_JOB_TIMEOUT_SEC,
+    },
     experimentalFeatures: {
       semanticSearch: val.SEMANTIC_SEARCH_ENABLED,
     },
@@ -619,6 +654,9 @@ export const clientConfig = {
   },
   chat: {
     enabled: serverConfig.chat.enabled,
+  },
+  translation: {
+    enabled: serverConfig.translation.enabled,
   },
   search: {
     semanticSearchEnabled:

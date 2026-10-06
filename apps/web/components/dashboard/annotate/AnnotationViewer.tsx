@@ -20,7 +20,7 @@ import {
   supportsCssHighlights,
 } from "@/lib/annotations/rendering";
 import type { AnchoredAnnotation } from "@/lib/annotations/rendering";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, FileWarning } from "lucide-react";
 
 import { useTRPC } from "@karakeep/shared-react/trpc";
@@ -30,6 +30,7 @@ import type { ZAnnotationColor } from "@karakeep/shared/types/pageAnnotations";
 import AnnotationSidebar from "./AnnotationSidebar";
 import ArchiveFrame from "./ArchiveFrame";
 import SelectionPopover from "./SelectionPopover";
+import { isTranslationActive } from "./TranslateArchiveControl";
 import ViewerToolbar from "./ViewerToolbar";
 
 type Mode = "read" | "annotate";
@@ -70,6 +71,18 @@ export default function AnnotationViewer({
   );
   const annotations = annotationsData?.annotations ?? [];
 
+  const queryClient = useQueryClient();
+  const { data: translationStatus } = useQuery(
+    api.archiveTranslations.getArchiveTranslation.queryOptions(
+      { bookmarkId },
+      {
+        refetchInterval: (query) =>
+          isTranslationActive(query.state.data) ? 1500 : false,
+      },
+    ),
+  );
+  const translating = isTranslationActive(translationStatus);
+
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const indexRef = useRef<TextIndex | null>(null);
   const anchoredRef = useRef<AnchoredAnnotation[]>([]);
@@ -94,6 +107,39 @@ export default function AnnotationViewer({
       });
     },
   });
+
+  // When a job leaves pending/running, the archive may have been swapped:
+  // refresh the archive info (new asset id) and the annotation list.
+  const wasTranslatingRef = useRef(false);
+  useEffect(() => {
+    if (wasTranslatingRef.current && !translating) {
+      queryClient.invalidateQueries(
+        api.pageAnnotations.getArchiveInfo.queryFilter({ bookmarkId }),
+      );
+      queryClient.invalidateQueries(
+        api.pageAnnotations.getForBookmark.queryFilter({ bookmarkId }),
+      );
+    }
+    wasTranslatingRef.current = translating;
+  }, [translating, queryClient, api, bookmarkId]);
+
+  // No annotating while the page is about to be replaced.
+  useEffect(() => {
+    if (translating) {
+      setMode("read");
+      setPending(null);
+    }
+  }, [translating]);
+
+  // A new archive asset remounts the iframe (key={assetId}); reset the state
+  // derived from the previous document until the new one loads.
+  const assetId = archiveInfo?.assetId;
+  useEffect(() => {
+    indexRef.current = null;
+    anchoredRef.current = [];
+    setFrameReady(false);
+    setPending(null);
+  }, [assetId]);
 
   const getDoc = useCallback(
     () => iframeRef.current?.contentDocument ?? null,
@@ -329,10 +375,13 @@ export default function AnnotationViewer({
         return;
       }
       if (e.key === "a") {
+        if (translating) {
+          return;
+        }
         setMode((m) => (m === "annotate" ? "read" : "annotate"));
         return;
       }
-      if ((e.key === "h" || e.key === "c") && pending) {
+      if ((e.key === "h" || e.key === "c") && pending && !translating) {
         handleHighlight(defaultColor, e.key === "c");
         return;
       }
@@ -359,6 +408,7 @@ export default function AnnotationViewer({
   }, [
     frameReady,
     pending,
+    translating,
     defaultColor,
     anchoredOrder,
     activeId,
@@ -400,6 +450,8 @@ export default function AnnotationViewer({
         onModeChange={setMode}
         annotationCount={annotations.length}
         onCopyMarkdown={handleCopyMarkdown}
+        translationStatus={translationStatus}
+        annotateDisabled={translating}
       />
       <div className="flex flex-1 overflow-hidden">
         <div className="relative flex-1 bg-muted/20">
@@ -408,8 +460,9 @@ export default function AnnotationViewer({
           ) : archiveInfo ? (
             <>
               <ArchiveFrame
+                key={archiveInfo.assetId}
                 ref={iframeRef}
-                src={`/api/annotate/${bookmarkId}/archive`}
+                src={`/api/annotate/${bookmarkId}/archive?v=${archiveInfo.assetId}`}
                 title={bookmarkTitle}
                 onLoad={handleFrameLoad}
               />

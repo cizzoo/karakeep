@@ -10,6 +10,7 @@ export const API_KEY_SCOPE_RESOURCES = [
   "highlights",
   "lists",
   "pageAnnotations",
+  "archiveTranslations",
   "prompts",
   "rules",
   "tags",

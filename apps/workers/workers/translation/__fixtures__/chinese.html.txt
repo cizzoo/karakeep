@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>内核编程入门指南</title><style>p{color:red}</style></head>
+<body>
+<h1>eBPF 入门</h1>
+<p>首先我们需要在<a href="/k" title="内核态说明">内核态</a>注册一个<code>eBPF</code>程序。<br>然后加载它。</p>
+<p>这是一个<strong>非常<em>重要</em>的</strong>概念，请务必理解。</p>
+<ul><li>第一项内容说明</li><li>第二项内容<span>说明</span></li></ul>
+<table><thead><tr><th>名称</th><th>描述</th></tr></thead><tbody><tr><td>程序类型</td><td>用于网络过滤的程序</td></tr></tbody></table>
+<div>外层的文字内容 <b>加粗部分</b><p>块级段落内容在这里</p> 尾部的文字内容</div>
+<pre>int main() { return 0; } // 这是注释</pre>
+<p>汉字<ruby>漢<rp>(</rp><rt>han</rt><rp>)</rp></ruby>字的注音示例。</p>
+<p translate="no">不要翻译这一段内容</p>
+<p class="notranslate">这一段也不要翻译处理</p>
+<p hidden>隐藏的段落内容不翻译</p>
+<p>Version 2.0.1 beta release</p>
+<p>2024-01-01 12:30</p>
+<div id="host"><template shadowrootmode="open"><p>影子根中的文字需要翻译</p><slot></slot></template>宿主内容</div>
+<template><p>普通模板里的内容不翻译</p></template>
+<p><img src="a.png" alt="一张示意图片"> 图片后面的文字。</p>
+<script>var s = "脚本里的中文";</script>
+</body></html>
