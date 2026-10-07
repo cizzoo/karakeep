@@ -669,6 +669,10 @@
             "type": "string",
             "nullable": true
           },
+          "contentLanguage": {
+            "type": "string",
+            "nullable": true
+          },
           "id": {
             "type": "string"
           },
@@ -3610,6 +3614,10 @@
                     "nullable": true
                   },
                   "note": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "contentLanguage": {
                     "type": "string",
                     "nullable": true
                   }

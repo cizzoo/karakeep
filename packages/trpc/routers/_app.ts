@@ -10,8 +10,7 @@ import { highlightsAppRouter } from "./highlights";
 import { importSessionsRouter } from "./importSessions";
 import { invitesAppRouter } from "./invites";
 import { listsAppRouter } from "./lists";
-import { archiveTranslationsAppRouter } from "./archiveTranslations";
-import { pageAnnotationsAppRouter } from "./pageAnnotations";
+import { bookmarkTranslationsAppRouter } from "./bookmarkTranslations";
 import { promptsAppRouter } from "./prompts";
 import { publicBookmarks } from "./publicBookmarks";
 import { rulesAppRouter } from "./rules";
@@ -33,8 +32,7 @@ export const appRouter = router({
   feeds: feedsAppRouter,
   backups: backupsAppRouter,
   highlights: highlightsAppRouter,
-  pageAnnotations: pageAnnotationsAppRouter,
-  archiveTranslations: archiveTranslationsAppRouter,
+  bookmarkTranslations: bookmarkTranslationsAppRouter,
   importSessions: importSessionsRouter,
   webhooks: webhooksAppRouter,
   assets: assetsAppRouter,

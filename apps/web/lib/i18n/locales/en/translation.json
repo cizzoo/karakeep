@@ -66,7 +66,6 @@
   },
   "actions": {
     "change_layout": "Change Layout",
-    "annotate": "Annotate",
     "archive": "Archive",
     "unarchive": "Un-archive",
     "favorite": "Favorite",
@@ -123,71 +122,9 @@
     "load_more": "Load More"
   },
   "highlights": {
-    "no_highlights": "You don't have any highlights yet."
-  },
-  "annotations": {
-    "toolbar": {
-      "back_to_bookmark": "Back to bookmark",
-      "open_original": "Open original page",
-      "annotation_count": "{{count}} annotations",
-      "copy_markdown": "Copy annotations as Markdown",
-      "mode_read": "Read",
-      "mode_annotate": "Annotate"
-    },
-    "translation": {
-      "translate": "Translate to English",
-      "retry": "Translation failed, retry",
-      "warming_up": "Warming up model…",
-      "progress": "Translating {{done}}/{{total}}",
-      "cancel": "Cancel",
-      "translated": "Translated",
-      "translated_details": "Translated on {{date}} with {{model}}",
-      "untranslated_one": "{{count}} passage left untranslated",
-      "untranslated_other": "{{count}} passages left untranslated",
-      "toasts": {
-        "start_failed": "Failed to start the translation",
-        "cancel_failed": "Failed to cancel the translation"
-      },
-      "dialog": {
-        "title": "Translate this page to English?",
-        "description": "The archived page will be permanently replaced by its English translation. The original archive will be deleted.",
-        "recovery": "To get the original back, save the page again with SingleFile (or re-crawl the bookmark, for archives made by the crawler).",
-        "annotations_warning_one": "This page has {{count}} annotation. It will be kept, but will most likely no longer match the translated text and show as unanchored.",
-        "annotations_warning_other": "This page has {{count}} annotations. They will be kept, but will most likely no longer match the translated text and show as unanchored.",
-        "confirm": "Translate"
-      }
-    },
-    "popover": {
-      "highlight_with_comment": "Highlight and add a comment"
-    },
-    "sidebar": {
-      "count": "{{count}} annotations",
-      "empty_hint": "Select text in the page to highlight it.",
-      "unanchored_section": "Couldn't place on this page ({{count}})",
-      "unanchored_hint": "This annotation's text couldn't be found on the current version of the page."
-    },
-    "card": {
-      "add_comment": "Add a comment",
-      "comment_placeholder": "Write a comment…",
-      "delete_confirmation_title": "Delete this annotation?",
-      "delete_confirmation_description": "This will permanently delete this highlight and its comment."
-    },
-    "no_archive": {
-      "title": "No archived copy of this page",
-      "description": "This bookmark doesn't have an archived copy to annotate yet. Use \"Offline Copies\" from the bookmark's menu to create one, or upload a SingleFile archive for the best results."
-    },
-    "unsupported_browser": {
-      "title": "Your browser can't display highlights",
-      "description": "Your browser doesn't support the CSS Custom Highlight API, so highlights won't be visible on the page. You can still create, edit, and delete annotations from the sidebar."
-    },
-    "toasts": {
-      "create_failed": "Couldn't create the annotation. Please try again.",
-      "update_failed": "Couldn't update the annotation. Please try again.",
-      "deleted": "Annotation deleted.",
-      "delete_failed": "Couldn't delete the annotation. Please try again.",
-      "markdown_copied": "Annotations copied as Markdown.",
-      "markdown_copy_failed": "Couldn't copy annotations. Please try again."
-    }
+    "no_highlights": "You don't have any highlights yet.",
+    "english_badge": "EN",
+    "english_badge_tooltip": "Made on the English translation"
   },
   "settings": {
     "back_to_app": "Back To App",
@@ -438,13 +375,9 @@
             "label": "Lists",
             "description": "Manage lists and list membership."
           },
-          "archiveTranslations": {
-            "label": "Archive Translations",
-            "description": "Translate archived bookmarks."
-          },
-          "pageAnnotations": {
-            "label": "Page Annotations",
-            "description": "Manage page annotations on archived bookmarks."
+          "bookmarkTranslations": {
+            "label": "Bookmark Translations",
+            "description": "Translate bookmark reader content."
           },
           "prompts": {
             "label": "Prompts",
@@ -1093,6 +1026,31 @@
     "page_overview": "Page Overview",
     "try_reader_view": "Try Reader View",
     "archived_page": "Archived Page",
+    "translation": {
+      "translate": "Translate to English",
+      "retry": "Translation failed, retry",
+      "warming_up": "Warming up model…",
+      "progress": "Translating {{done}}/{{total}}",
+      "cancel": "Cancel",
+      "original": "Original",
+      "english": "English",
+      "translated_details": "Translated on {{date}} with {{model}}",
+      "untranslated_one": "{{count}} passage left untranslated",
+      "untranslated_other": "{{count}} passages left untranslated",
+      "stale": "Content changed — retranslate",
+      "discard": "Discard translation",
+      "more_actions": "Translation options",
+      "confirm_title": "Delete highlights on the English version?",
+      "confirm_description_one": "{{count}} highlight made on the English version will be deleted. Highlights on the original are not affected.",
+      "confirm_description_other": "{{count}} highlights made on the English version will be deleted. Highlights on the original are not affected.",
+      "confirm_discard": "Discard translation",
+      "confirm_retranslate": "Retranslate",
+      "toasts": {
+        "start_failed": "Failed to start the translation",
+        "cancel_failed": "Failed to cancel the translation",
+        "discard_failed": "Failed to discard the translation"
+      }
+    },
     "archive_info": "Archives may not render correctly inline if they require Javascript. For best results, <1>download it and open in your browser</1>.",
     "fetch_error_title": "Content Unavailable",
     "fetch_error_description": "We couldn't fetch the content for this link. The page may be protected, require authentication, or be temporarily unavailable.",

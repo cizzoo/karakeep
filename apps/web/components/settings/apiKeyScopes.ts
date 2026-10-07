@@ -56,16 +56,10 @@ const RESOURCE_TRANSLATION_KEYS = {
     descriptionKey: "settings.api_keys.scopes.resources.lists.description",
     hidden: false,
   },
-  archiveTranslations: {
-    labelKey: "settings.api_keys.scopes.resources.archiveTranslations.label",
+  bookmarkTranslations: {
+    labelKey: "settings.api_keys.scopes.resources.bookmarkTranslations.label",
     descriptionKey:
-      "settings.api_keys.scopes.resources.archiveTranslations.description",
-    hidden: true,
-  },
-  pageAnnotations: {
-    labelKey: "settings.api_keys.scopes.resources.pageAnnotations.label",
-    descriptionKey:
-      "settings.api_keys.scopes.resources.pageAnnotations.description",
+      "settings.api_keys.scopes.resources.bookmarkTranslations.description",
     hidden: true,
   },
   prompts: {

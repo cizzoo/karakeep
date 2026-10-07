@@ -308,6 +308,27 @@ export function segmentDocument(doc: ParentNode): SegmentResult {
   return { units: raw, title, html };
 }
 
+/** Segments an HTML fragment (e.g. reader-view content): no head/title units. */
+export function segmentFragment(frag: ParentNode, title = ""): SegmentResult {
+  const raw: Unit[] = [];
+  let id = 0;
+  walkChildren(frag, (nodes, parent) => {
+    const u = makeRunUnit(id, parent, nodes);
+    if (u) {
+      raw.push(u);
+      id++;
+    }
+  });
+  collectAttrs(frag, (el, name, value) => {
+    const u = makeAttrUnit(id, el, name, value);
+    if (u) {
+      raw.push(u);
+      id++;
+    }
+  });
+  return { units: raw, title };
+}
+
 /** Is the unit's letter content mostly ASCII (identifier/code/English)? */
 export function asciiRatio(plain: string): number {
   let letters = 0;

@@ -399,6 +399,8 @@ export const highlights = sqliteTable(
       .notNull(),
     text: text("text"),
     note: text("note"),
+    // null = the original reader content, "en" = the English translation.
+    contentLanguage: text("contentLanguage"),
     createdAt: createdAtField(),
   },
   (tb) => [
@@ -407,45 +409,8 @@ export const highlights = sqliteTable(
   ],
 );
 
-export const pageAnnotations = sqliteTable(
-  "pageAnnotations",
-  {
-    id: text("id")
-      .notNull()
-      .primaryKey()
-      .$defaultFn(() => createId()),
-    bookmarkId: text("bookmarkId")
-      .notNull()
-      .references(() => bookmarks.id, {
-        onDelete: "cascade",
-      }),
-    userId: text("userId")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    assetId: text("assetId").references(() => assets.id, {
-      onDelete: "set null",
-    }),
-    exact: text("exact").notNull(),
-    prefix: text("prefix").notNull().default(""),
-    suffix: text("suffix").notNull().default(""),
-    startOffset: integer("startOffset").notNull(),
-    color: text("color", {
-      enum: ["red", "green", "blue", "yellow"],
-    })
-      .default("yellow")
-      .notNull(),
-    comment: text("comment"),
-    createdAt: createdAtField(),
-    updatedAt: integer("updatedAt", { mode: "timestamp" }),
-  },
-  (tb) => [
-    index("pageAnnotations_bookmarkId_idx").on(tb.bookmarkId),
-    index("pageAnnotations_userId_idx").on(tb.userId),
-  ],
-);
-
-export const archiveTranslations = sqliteTable(
-  "archiveTranslations",
+export const bookmarkTranslations = sqliteTable(
+  "bookmarkTranslations",
   {
     id: text("id")
       .notNull()
@@ -460,9 +425,6 @@ export const archiveTranslations = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     targetLanguage: text("targetLanguage").notNull().default("en"),
-    // No FKs on the asset ids: the original is deleted after the swap.
-    originalAssetId: text("originalAssetId").notNull(),
-    translatedAssetId: text("translatedAssetId"),
     status: text("status", {
       enum: ["pending", "running", "done", "failed", "cancelled"],
     })
@@ -477,15 +439,18 @@ export const archiveTranslations = sqliteTable(
     model: text("model").notNull(),
     promptVersion: integer("promptVersion").notNull(),
     error: text("error"),
+    // sha256 of the reader HTML that was translated (set when done).
+    sourceHash: text("sourceHash"),
+    translatedHtml: text("translatedHtml"),
     createdAt: createdAtField(),
     modifiedAt: modifiedAtField(),
   },
   (tb) => [
-    unique("archiveTranslations_bookmarkId_targetLanguage_unique").on(
+    unique("bookmarkTranslations_bookmarkId_targetLanguage_unique").on(
       tb.bookmarkId,
       tb.targetLanguage,
     ),
-    index("archiveTranslations_userId_idx").on(tb.userId),
+    index("bookmarkTranslations_userId_idx").on(tb.userId),
   ],
 );
 

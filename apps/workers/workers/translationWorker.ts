@@ -4,22 +4,13 @@ import { withWorkerEventLog, withWorkerTracing } from "workerTracing";
 
 import { db } from "@karakeep/db";
 import {
-  archiveTranslations,
-  assets,
-  AssetTypes,
   bookmarkLinks,
-  pageAnnotations,
+  bookmarks,
+  bookmarkTranslations,
 } from "@karakeep/db/schema";
 import {
   addLogFields,
-  ASSET_TYPES,
-  newAssetId,
-  QuotaService,
-  readAsset,
-  saveAsset,
-  silentDeleteAsset,
   TranslationQueue,
-  triggerSearchReindex,
   zTranslationRequestSchema,
 } from "@karakeep/shared-server";
 import type { ZTranslationRequest } from "@karakeep/shared-server";
@@ -27,19 +18,16 @@ import serverConfig from "@karakeep/shared/config";
 import logger from "@karakeep/shared/logger";
 import type { DequeuedJob } from "@karakeep/shared/queueing";
 import { getQueueClient } from "@karakeep/shared/queueing";
-import { selectAnnotatableArchive } from "@karakeep/trpc/models/pageAnnotations.archive";
+import { Bookmark } from "@karakeep/trpc/models/bookmarks";
+import { hashReaderHtml } from "@karakeep/trpc/models/bookmarkTranslations.hash";
 
-import { storeHtmlContent } from "./crawler/assetStorage";
-import { runParseSubprocess } from "./crawler/parseSubprocess";
 import {
-  isAlreadyTranslated,
   TranslationCancelledError,
   TranslationTooLargeError,
   translateDocument,
   TranslatorClient,
   TranslatorConfigError,
 } from "./translation";
-import { updateAsset } from "../workerUtils";
 
 const MAX_FAILED_RATIO = 0.2;
 const PROGRESS_THROTTLE_MS = 1000;
@@ -49,7 +37,7 @@ class TranslationFailure extends Error {}
 
 export class TranslationWorker {
   static async build() {
-    logger.info("Starting archive translation worker ...");
+    logger.info("Starting bookmark translation worker ...");
 
     return (await getQueueClient())!.createRunner<ZTranslationRequest>(
       TranslationQueue,
@@ -86,47 +74,47 @@ export class TranslationWorker {
   }
 }
 
-type RowUpdate = Partial<typeof archiveTranslations.$inferInsert>;
+type RowUpdate = Partial<typeof bookmarkTranslations.$inferInsert>;
 
 // Updates the row unless it has been cancelled (or otherwise left "running").
 async function updateWhileRunning(translationId: string, set: RowUpdate) {
   await db
-    .update(archiveTranslations)
+    .update(bookmarkTranslations)
     .set(set)
     .where(
       and(
-        eq(archiveTranslations.id, translationId),
-        eq(archiveTranslations.status, "running"),
+        eq(bookmarkTranslations.id, translationId),
+        eq(bookmarkTranslations.status, "running"),
       ),
     );
 }
 
 async function markFailed(translationId: string, error: string) {
   await db
-    .update(archiveTranslations)
+    .update(bookmarkTranslations)
     .set({ status: "failed", phase: null, error: error.slice(0, 2000) })
     .where(
       and(
-        eq(archiveTranslations.id, translationId),
+        eq(bookmarkTranslations.id, translationId),
         // Never override cancelled/done.
-        eq(archiveTranslations.status, "running"),
+        eq(bookmarkTranslations.status, "running"),
       ),
     );
   // A row that never made it to running (still pending) should fail as well.
   await db
-    .update(archiveTranslations)
+    .update(bookmarkTranslations)
     .set({ status: "failed", phase: null, error: error.slice(0, 2000) })
     .where(
       and(
-        eq(archiveTranslations.id, translationId),
-        eq(archiveTranslations.status, "pending"),
+        eq(bookmarkTranslations.id, translationId),
+        eq(bookmarkTranslations.status, "pending"),
       ),
     );
 }
 
 async function isCancelledInDb(translationId: string) {
-  const row = await db.query.archiveTranslations.findFirst({
-    where: eq(archiveTranslations.id, translationId),
+  const row = await db.query.bookmarkTranslations.findFirst({
+    where: eq(bookmarkTranslations.id, translationId),
     columns: { status: true },
   });
   return !row || row.status === "cancelled";
@@ -136,8 +124,8 @@ async function runWorker(job: DequeuedJob<ZTranslationRequest>) {
   const { translationId } = job.data;
   addLogFields<"translationWorker.run">({ "translation.id": translationId });
 
-  const row = await db.query.archiveTranslations.findFirst({
-    where: eq(archiveTranslations.id, translationId),
+  const row = await db.query.bookmarkTranslations.findFirst({
+    where: eq(bookmarkTranslations.id, translationId),
   });
   if (!row) {
     logger.warn(`[Translation][${job.id}] Row ${translationId} not found`);
@@ -148,10 +136,9 @@ async function runWorker(job: DequeuedJob<ZTranslationRequest>) {
     return;
   }
 
-  const pending: { newAssetId?: string } = {};
   try {
     await db
-      .update(archiveTranslations)
+      .update(bookmarkTranslations)
       .set({
         status: "running",
         phase: null,
@@ -162,17 +149,14 @@ async function runWorker(job: DequeuedJob<ZTranslationRequest>) {
       })
       .where(
         and(
-          eq(archiveTranslations.id, translationId),
+          eq(bookmarkTranslations.id, translationId),
           // Don't resurrect a job cancelled after we read the row.
-          ne(archiveTranslations.status, "cancelled"),
+          ne(bookmarkTranslations.status, "cancelled"),
         ),
       );
 
-    await translate(job.id, row, pending);
+    await translate(job.id, row);
   } catch (e) {
-    if (pending.newAssetId) {
-      await silentDeleteAsset(row.userId, pending.newAssetId);
-    }
     if (e instanceof TranslationCancelledError) {
       logger.info(`[Translation][${job.id}] Cancelled by the user`);
       return;
@@ -193,8 +177,7 @@ async function runWorker(job: DequeuedJob<ZTranslationRequest>) {
 
 async function translate(
   jobId: string,
-  row: typeof archiveTranslations.$inferSelect,
-  pending: { newAssetId?: string },
+  row: typeof bookmarkTranslations.$inferSelect,
 ) {
   const cfg = serverConfig.translation;
   const { id: translationId, bookmarkId, userId } = row;
@@ -207,34 +190,29 @@ async function translate(
 
   const link = await db.query.bookmarkLinks.findFirst({
     where: eq(bookmarkLinks.id, bookmarkId),
+    columns: { htmlContent: true, contentAssetId: true, title: true },
   });
   if (!link) {
     throw new TranslationFailure("The bookmark no longer exists");
   }
-  const bookmarkAssets = await db.query.assets.findMany({
-    where: eq(assets.bookmarkId, bookmarkId),
+  const bookmark = await db.query.bookmarks.findFirst({
+    where: eq(bookmarks.id, bookmarkId),
+    columns: { title: true },
   });
-  const archive = selectAnnotatableArchive(bookmarkAssets);
-  if (!archive || archive.assetId !== row.originalAssetId) {
-    throw new TranslationFailure(
-      "The archive changed since the translation was requested",
-    );
-  }
-  const originalAsset = bookmarkAssets.find((a) => a.id === archive.assetId)!;
 
-  const { asset: originalBuf, metadata } = await readAsset({
-    userId,
-    assetId: row.originalAssetId,
-  });
-  if (originalBuf.byteLength > cfg.maxHtmlSizeMb * 1024 * 1024) {
+  // Same source as the reader view: inline content or the HTML content asset.
+  const html = await Bookmark.getBookmarkHtmlContent(link, userId);
+  if (!html) {
     throw new TranslationFailure(
-      `The archive is larger than the ${cfg.maxHtmlSizeMb} MB translation limit`,
+      "This bookmark has no reader content to translate",
     );
   }
-  const html = originalBuf.toString("utf8");
-  if (isAlreadyTranslated(html)) {
-    throw new TranslationFailure("This archive is already translated");
+  if (Buffer.byteLength(html, "utf8") > cfg.maxHtmlSizeMb * 1024 * 1024) {
+    throw new TranslationFailure(
+      `The reader content is larger than the ${cfg.maxHtmlSizeMb} MB translation limit`,
+    );
   }
+  const sourceHash = hashReaderHtml(html);
 
   const client = new TranslatorClient({
     baseUrl: cfg.baseUrl,
@@ -258,6 +236,8 @@ async function translate(
     batchTokenBudget: cfg.batchTokenBudget,
     maxUnits: cfg.maxUnits,
     maxConcurrentBatches: cfg.maxConcurrency,
+    fragment: true,
+    title: bookmark?.title ?? link.title ?? undefined,
     onProgress: async (done, total) => {
       const now = Date.now();
       if (now - lastWrite < PROGRESS_THROTTLE_MS && done < total) {
@@ -274,7 +254,7 @@ async function translate(
   });
 
   if (result.totalUnits === 0) {
-    throw new TranslationFailure("Nothing to translate in this archive");
+    throw new TranslationFailure("Nothing to translate in this bookmark");
   }
   if (result.failedUnits / result.totalUnits > MAX_FAILED_RATIO) {
     throw new TranslationFailure(
@@ -285,177 +265,32 @@ async function translate(
     throw new TranslationCancelledError("cancelled");
   }
 
-  await updateWhileRunning(translationId, {
-    phase: "saving",
-    progressDone: result.totalUnits,
-    progressTotal: result.totalUnits,
-    failedUnits: result.failedUnits,
-  });
+  await updateWhileRunning(translationId, { phase: "saving" });
 
-  const translatedBuf = Buffer.from(result.html, "utf8");
-  const quotaApproved = await QuotaService.checkStorageQuota(
-    db,
-    userId,
-    translatedBuf.byteLength,
-  );
-  const translatedAssetId = newAssetId();
-  pending.newAssetId = translatedAssetId;
-  await saveAsset({
-    userId,
-    assetId: translatedAssetId,
-    asset: translatedBuf,
-    metadata: {
-      contentType: metadata.contentType,
-      fileName: metadata.fileName,
-    },
-    quotaApproved,
-  });
-
-  // The swap. Everything is checked again inside the transaction.
-  await db.transaction((txn) => {
-    const current = selectAnnotatableArchive(
-      txn.select().from(assets).where(eq(assets.bookmarkId, bookmarkId)).all(),
-    );
-    if (current?.assetId !== row.originalAssetId) {
-      throw new TranslationFailure(
-        "The archive changed while it was being translated",
-      );
-    }
-    const state = txn
-      .select({ status: archiveTranslations.status })
-      .from(archiveTranslations)
-      .where(eq(archiveTranslations.id, translationId))
-      .get();
-    if (state?.status !== "running") {
-      throw new TranslationCancelledError("cancelled");
-    }
-
-    updateAsset(
-      row.originalAssetId,
-      {
-        id: translatedAssetId,
-        assetType: originalAsset.assetType,
-        bookmarkId,
-        userId,
-        contentType: originalAsset.contentType,
-        fileName: originalAsset.fileName,
-        size: translatedBuf.byteLength,
-      },
-      txn,
-    );
-    // Keep the annotations: point them at the new archive (the FK would
-    // otherwise null them out when the original row is deleted).
-    txn
-      .update(pageAnnotations)
-      .set({ assetId: translatedAssetId })
-      .where(eq(pageAnnotations.assetId, row.originalAssetId))
-      .run();
-    txn
-      .update(archiveTranslations)
-      .set({
-        translatedAssetId,
-        status: "done",
-        phase: null,
-        error: null,
-        progressDone: result.totalUnits,
-        progressTotal: result.totalUnits,
-        failedUnits: result.failedUnits,
-      })
-      .where(eq(archiveTranslations.id, translationId))
-      .run();
-  });
-
-  // Committed: from here on nothing may remove the new asset.
-  pending.newAssetId = undefined;
-  await silentDeleteAsset(userId, row.originalAssetId);
+  // Only a row that is still running may be completed (not cancelled/deleted).
+  const saved = await db
+    .update(bookmarkTranslations)
+    .set({
+      status: "done",
+      phase: null,
+      error: null,
+      progressDone: result.totalUnits,
+      progressTotal: result.totalUnits,
+      failedUnits: result.failedUnits,
+      sourceHash,
+      translatedHtml: result.html,
+    })
+    .where(
+      and(
+        eq(bookmarkTranslations.id, translationId),
+        eq(bookmarkTranslations.status, "running"),
+      ),
+    )
+    .returning({ id: bookmarkTranslations.id });
+  if (saved.length === 0) {
+    throw new TranslationCancelledError("cancelled");
+  }
   logger.info(
-    `[Translation][${jobId}] Swapped archive ${row.originalAssetId} -> ${translatedAssetId} (${result.failedUnits}/${result.totalUnits} units failed)`,
+    `[Translation][${jobId}] Stored translation for bookmark ${bookmarkId} (${result.failedUnits}/${result.totalUnits} units failed)`,
   );
-
-  try {
-    await regenerateDerivedData({
-      jobId,
-      bookmarkId,
-      userId,
-      url: link.url,
-      html: result.html,
-      oldContentAssetId: bookmarkAssets.find(
-        (a) => a.assetType === AssetTypes.LINK_HTML_CONTENT,
-      )?.id,
-    });
-  } catch (e) {
-    logger.error(
-      `[Translation][${jobId}] Failed to regenerate derived data (the translation itself was applied): ${e}`,
-    );
-  }
-}
-
-// Re-derives the reader content (and the search index) from the translated
-// archive, mirroring what the crawler does for a freshly stored archive.
-async function regenerateDerivedData({
-  jobId,
-  bookmarkId,
-  userId,
-  url,
-  html,
-  oldContentAssetId,
-}: {
-  jobId: string;
-  bookmarkId: string;
-  userId: string;
-  url: string;
-  html: string;
-  oldContentAssetId: string | undefined;
-}) {
-  const parsed = await runParseSubprocess(
-    html,
-    url,
-    jobId,
-    AbortSignal.timeout(serverConfig.crawler.parseTimeoutSec * 1000 + 5000),
-  );
-  const readable = parsed.readableContent?.content;
-  const stored = await storeHtmlContent(readable, userId, jobId);
-
-  try {
-    await db.transaction((txn) => {
-      txn
-        .update(bookmarkLinks)
-        .set({
-          htmlContent:
-            stored.result === "store_inline" ? (readable ?? null) : null,
-          contentAssetId: stored.result === "stored" ? stored.assetId : null,
-          readerViewStatus: parsed.readerViewAssessment?.status ?? null,
-          readerViewScore: parsed.readerViewAssessment?.score ?? null,
-          readerViewReasons: parsed.readerViewAssessment?.reasons ?? null,
-          readerViewClassifierVersion:
-            parsed.readerViewAssessment?.classifierVersion ?? null,
-        })
-        .where(eq(bookmarkLinks.id, bookmarkId))
-        .run();
-      if (stored.result === "stored") {
-        updateAsset(
-          oldContentAssetId,
-          {
-            id: stored.assetId,
-            bookmarkId,
-            userId,
-            assetType: AssetTypes.LINK_HTML_CONTENT,
-            contentType: ASSET_TYPES.TEXT_HTML,
-            size: stored.size,
-            fileName: null,
-          },
-          txn,
-        );
-      } else if (oldContentAssetId) {
-        txn.delete(assets).where(eq(assets.id, oldContentAssetId)).run();
-      }
-    });
-  } catch (e) {
-    if (stored.result === "stored") {
-      await silentDeleteAsset(userId, stored.assetId);
-    }
-    throw e;
-  }
-  await silentDeleteAsset(userId, oldContentAssetId);
-  await triggerSearchReindex(bookmarkId, { groupId: userId });
 }

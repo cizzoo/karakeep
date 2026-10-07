@@ -1,4 +1,4 @@
-import { parse, serialize } from "parse5";
+import { parse, parseFragment, serialize } from "parse5";
 
 import { estimateTokens, groupBatches, splitEncoded } from "./batch";
 import { setAttr } from "./dom";
@@ -11,6 +11,7 @@ import {
   asciiRatio,
   dominantScriptIsNonLatin,
   segmentDocument,
+  segmentFragment,
   Unit,
 } from "./segment";
 import { Token, tokenize } from "./tokens";
@@ -24,7 +25,7 @@ import { validateTranslation } from "./validate";
 
 // Single source of truth shared with the tRPC layer, which stores it on the
 // translation row. Bump it when the prompt or the segmenter changes.
-export { ARCHIVE_TRANSLATION_PROMPT_VERSION as PROMPT_VERSION } from "@karakeep/shared/types/archiveTranslations";
+export { BOOKMARK_TRANSLATION_PROMPT_VERSION as PROMPT_VERSION } from "@karakeep/shared/types/bookmarkTranslations";
 
 export * from "./client";
 export * from "./types";
@@ -36,6 +37,10 @@ export interface TranslateDocumentOptions {
   maxConcurrentBatches?: number;
   onProgress?: (done: number, total: number) => void | Promise<void>;
   isCancelled?: () => Promise<boolean>;
+  /** Treat the input as an HTML fragment (no <html>/<head>), e.g. reader content. */
+  fragment?: boolean;
+  /** Page title given to the model as context (fragment mode only). */
+  title?: string;
 }
 
 export interface TranslateDocumentResult {
@@ -61,8 +66,10 @@ export async function translateDocument(
   html: string,
   opts: TranslateDocumentOptions,
 ): Promise<TranslateDocumentResult> {
-  const doc = parse(html);
-  const seg = segmentDocument(doc);
+  const doc = opts.fragment ? parseFragment(html) : parse(html);
+  const seg = opts.fragment
+    ? segmentFragment(doc, opts.title ?? "")
+    : segmentDocument(doc);
   let units = seg.units;
   if (dominantScriptIsNonLatin(units)) {
     units = units.filter((u) => asciiRatio(u.plain) < ASCII_SKIP_RATIO);

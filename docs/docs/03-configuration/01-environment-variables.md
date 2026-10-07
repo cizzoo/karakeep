@@ -207,7 +207,7 @@ Karakeep uses [tesseract.js](https://github.com/naptha/tesseract.js) to extract 
 
 ## Translation Configs
 
-Optional "translate archived page" feature. It sends the text of a page archive (SingleFile or full-page archive) to a self-hosted OpenAI-compatible translation model and replaces the stored archive with the translated copy. The feature is disabled unless both `TRANSLATION_BASE_URL` and `TRANSLATION_API_KEY` are set. These settings are independent of the `OPENAI_*` / `INFERENCE_*` ones, and they are only read by the workers (the API key is never sent to the browser).
+Optional "translate to English" feature for the reader view. It sends the text of a bookmark's reader content to a self-hosted OpenAI-compatible translation model and stores the English version next to the original. The feature is disabled unless both `TRANSLATION_BASE_URL` and `TRANSLATION_API_KEY` are set. These settings are independent of the `OPENAI_*` / `INFERENCE_*` ones, and they are only read by the workers (the API key is never sent to the browser).
 
 | Name                            | Required | Default    | Description                                                                                                                  |
 | ------------------------------- | -------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------- |
@@ -221,12 +221,13 @@ Optional "translate archived page" feature. It sends the text of a page archive 
 | TRANSLATION_BATCH_TOKEN_BUDGET  | No       | 1500       | Approximate source tokens per request.                                                                                       |
 | TRANSLATION_MAX_OUTPUT_TOKENS   | No       | 6000       | Upper bound for output tokens per request.                                                                                   |
 | TRANSLATION_MAX_UNITS           | No       | 8000       | Pages with more translatable text blocks than this are refused.                                                              |
-| TRANSLATION_MAX_HTML_SIZE_MB    | No       | 50         | Archives larger than this are refused.                                                                                       |
+| TRANSLATION_MAX_HTML_SIZE_MB    | No       | 50         | Reader content larger than this is refused.                                                                                    |
 | TRANSLATION_JOB_TIMEOUT_SEC     | No       | 3600       | Timeout of a whole translation job.                                                                                          |
 
 Notes:
 
-- The translation is one-way: the original archive is deleted once the translated one is stored. For a page that was saved with SingleFile, the original can only be restored by saving the page again with SingleFile. Existing page annotations are kept, but may no longer match the translated text.
+- Nothing is replaced: the original reader content, the archive, the search index, tags and summary are untouched. The translation is stored separately and the reader view offers an Original / English toggle (and a button to discard the translation). Highlights are anchored to the original text, so they are hidden (and cannot be created) while the English version is shown.
+- If the reader content changes (for example after a re-crawl), the translation is flagged as outdated and can be regenerated.
 - The workers container must be able to reach the translation server. If it is only reachable over Tailscale, either run the Karakeep host on the tailnet (outbound traffic from the default bridge network to `100.x.y.z` normally works; prefer the IP over MagicDNS names, which may not resolve inside containers), or add a Tailscale sidecar / host networking for the workers container. To check connectivity:
 
   ```bash

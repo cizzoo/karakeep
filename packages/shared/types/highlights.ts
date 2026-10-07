@@ -15,6 +15,8 @@ const zHighlightBaseSchema = z.object({
   color: zHighlightColorSchema.default("yellow"),
   text: z.string().nullable(),
   note: z.string().nullable(),
+  // null/absent = the original reader content, "en" = the English translation.
+  contentLanguage: z.string().nullable().optional(),
 });
 
 export const zHighlightSchema = zHighlightBaseSchema.extend(

@@ -4,6 +4,8 @@ import { Suspense, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import HighlightCard from "@/components/dashboard/highlights/HighlightCard";
 import ReaderSettingsPopover from "@/components/dashboard/preview/ReaderSettingsPopover";
+import ReaderTranslationControl from "@/components/dashboard/preview/ReaderTranslationControl";
+import type { ReaderLanguageView } from "@/components/dashboard/preview/ReaderTranslationControl";
 import ReaderView from "@/components/dashboard/preview/ReaderView";
 import { Button } from "@/components/ui/button";
 import { FullPageSpinner } from "@/components/ui/full-page-spinner";
@@ -37,6 +39,8 @@ export default function ReaderViewPage() {
   const router = useRouter();
   const { settings } = useReaderSettings();
   const [showHighlights, setShowHighlights] = useState(false);
+  const [languageView, setLanguageView] =
+    useState<ReaderLanguageView>("original");
   const isOwner = session?.user?.id === bookmark?.userId;
 
   const onClose = () => {
@@ -67,6 +71,14 @@ export default function ReaderViewPage() {
             <Button variant="ghost" size="icon" onClick={handlePrint}>
               <Printer className="h-4 w-4" />
             </Button>
+
+            {isOwner && (
+              <ReaderTranslationControl
+                bookmarkId={bookmarkId}
+                view={languageView}
+                onViewChange={setLanguageView}
+              />
+            )}
 
             <ReaderSettingsPopover variant="ghost" />
 
@@ -135,6 +147,7 @@ export default function ReaderViewPage() {
                       }}
                       bookmarkId={bookmarkId}
                       readOnly={!isOwner}
+                      showTranslation={languageView === "english"}
                       progressBarStyle={{ position: "fixed", top: "3.5rem" }}
                     />
                   </div>

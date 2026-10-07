@@ -1,5 +1,6 @@
 import { ActionButton } from "@/components/ui/action-button";
 import { toast } from "@/components/ui/sonner";
+import { useTranslation } from "@/lib/i18n/client";
 import { cn } from "@/lib/utils";
 import { Trash2 } from "lucide-react";
 
@@ -19,6 +20,7 @@ export default function HighlightCard({
   className?: string;
   readOnly: boolean;
 }) {
+  const { t } = useTranslation();
   const { mutate: deleteHighlight, isPending: isDeleting } = useDeleteHighlight(
     {
       onSuccess: () => {
@@ -71,6 +73,14 @@ export default function HighlightCard({
         >
           <p>{highlight.text}</p>
         </blockquote>
+        {highlight.contentLanguage === "en" && (
+          <span
+            title={t("highlights.english_badge_tooltip")}
+            className="w-fit rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground"
+          >
+            {t("highlights.english_badge")}
+          </span>
+        )}
         {highlight.note && (
           <span className="text-sm text-muted-foreground">
             {highlight.note}

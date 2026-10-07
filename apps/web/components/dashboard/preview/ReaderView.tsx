@@ -17,18 +17,23 @@ import { BookmarkTypes } from "@karakeep/shared/types/bookmarks";
 
 import ReadingProgressBanner from "./ReadingProgressBanner";
 
+const ENGLISH_CONTENT_LANGUAGE = "en";
+
 export default function ReaderView({
   bookmarkId,
   className,
   style,
   readOnly,
   progressBarStyle,
+  showTranslation = false,
 }: {
   bookmarkId: string;
   className?: string;
   style?: React.CSSProperties;
   readOnly: boolean;
   progressBarStyle?: React.CSSProperties;
+  // Show the English translation of the reader content instead of the original.
+  showTranslation?: boolean;
 }) {
   const { t } = useTranslation();
   const api = useTRPC();
@@ -51,6 +56,17 @@ export default function ReaderView({
       },
     ),
   );
+
+  const { data: translated, isPending: isTranslatedLoading } = useQuery(
+    api.bookmarkTranslations.getTranslatedContent.queryOptions(
+      { bookmarkId },
+      { enabled: showTranslation },
+    ),
+  );
+  // Reading progress is anchored to offsets of the original text, so it is
+  // ignored while the translation is shown. Highlights are stored per version.
+  const translatedHtml = showTranslation ? (translated?.html ?? null) : null;
+  const isShowingTranslation = translatedHtml !== null;
 
   const {
     showBanner,
@@ -109,7 +125,7 @@ export default function ReaderView({
   });
 
   let content;
-  if (isCachedContentLoading) {
+  if (isCachedContentLoading || (showTranslation && isTranslatedLoading)) {
     content = <FullPageSpinner />;
   } else if (!cachedContent) {
     content = (
@@ -134,15 +150,17 @@ export default function ReaderView({
   } else {
     content = (
       <ScrollProgressTracker
-        onSavePosition={onSavePosition}
-        onScrollPositionChange={onScrollPositionChange}
-        restorePosition={restorePosition}
+        onSavePosition={isShowingTranslation ? undefined : onSavePosition}
+        onScrollPositionChange={
+          isShowingTranslation ? undefined : onScrollPositionChange
+        }
+        restorePosition={restorePosition && !isShowingTranslation}
         readingProgressOffset={readingProgressOffset}
         readingProgressAnchor={readingProgressAnchor}
         showProgressBar
         progressBarStyle={progressBarStyle}
       >
-        {showBanner && (
+        {showBanner && !isShowingTranslation && (
           <ReadingProgressBanner
             percent={bannerPercent}
             onContinue={onContinue}
@@ -152,8 +170,12 @@ export default function ReaderView({
         <BookmarkHTMLHighlighter
           className={className}
           style={style}
-          htmlContent={cachedContent || ""}
-          highlights={highlights?.highlights ?? []}
+          htmlContent={translatedHtml ?? cachedContent ?? ""}
+          highlights={(highlights?.highlights ?? []).filter(
+            (h) =>
+              (h.contentLanguage ?? null) ===
+              (isShowingTranslation ? ENGLISH_CONTENT_LANGUAGE : null),
+          )}
           readOnly={readOnly}
           onDeleteHighlight={(h) =>
             deleteHighlight({
@@ -175,6 +197,9 @@ export default function ReaderView({
               bookmarkId,
               text: h.text,
               note: h.note ?? null,
+              contentLanguage: isShowingTranslation
+                ? ENGLISH_CONTENT_LANGUAGE
+                : null,
             })
           }
         />

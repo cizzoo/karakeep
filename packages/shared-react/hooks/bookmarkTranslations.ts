@@ -9,25 +9,25 @@ function useInvalidateTranslation() {
   const queryClient = useQueryClient();
   return (bookmarkId: string) => {
     queryClient.invalidateQueries(
-      api.archiveTranslations.getArchiveTranslation.queryFilter({
-        bookmarkId,
-      }),
+      api.bookmarkTranslations.getStatus.queryFilter({ bookmarkId }),
     );
     queryClient.invalidateQueries(
-      api.pageAnnotations.getArchiveInfo.queryFilter({ bookmarkId }),
+      api.bookmarkTranslations.getTranslatedContent.queryFilter({
+        bookmarkId,
+      }),
     );
   };
 }
 
-export function useTranslateArchive(
+export function useTranslateBookmark(
   opts?: Parameters<
-    TRPCApi["archiveTranslations"]["translateArchive"]["mutationOptions"]
+    TRPCApi["bookmarkTranslations"]["translate"]["mutationOptions"]
   >[0],
 ) {
   const api = useTRPC();
   const invalidate = useInvalidateTranslation();
   return useMutation(
-    api.archiveTranslations.translateArchive.mutationOptions({
+    api.bookmarkTranslations.translate.mutationOptions({
       ...opts,
       onSuccess: (res, req, meta, context) => {
         invalidate(req.bookmarkId);
@@ -37,15 +37,33 @@ export function useTranslateArchive(
   );
 }
 
-export function useCancelArchiveTranslation(
+export function useCancelBookmarkTranslation(
   opts?: Parameters<
-    TRPCApi["archiveTranslations"]["cancelArchiveTranslation"]["mutationOptions"]
+    TRPCApi["bookmarkTranslations"]["cancel"]["mutationOptions"]
   >[0],
 ) {
   const api = useTRPC();
   const invalidate = useInvalidateTranslation();
   return useMutation(
-    api.archiveTranslations.cancelArchiveTranslation.mutationOptions({
+    api.bookmarkTranslations.cancel.mutationOptions({
+      ...opts,
+      onSuccess: (res, req, meta, context) => {
+        invalidate(req.bookmarkId);
+        return opts?.onSuccess?.(res, req, meta, context);
+      },
+    }),
+  );
+}
+
+export function useDeleteBookmarkTranslation(
+  opts?: Parameters<
+    TRPCApi["bookmarkTranslations"]["delete"]["mutationOptions"]
+  >[0],
+) {
+  const api = useTRPC();
+  const invalidate = useInvalidateTranslation();
+  return useMutation(
+    api.bookmarkTranslations.delete.mutationOptions({
       ...opts,
       onSuccess: (res, req, meta, context) => {
         invalidate(req.bookmarkId);

@@ -37,6 +37,39 @@ describe("Highlight Routes", () => {
     expect(res.note).toEqual("Test note");
   });
 
+  test<CustomTestContext>("contentLanguage defaults to null and round-trips", async ({
+    apiCallers,
+  }) => {
+    const api = apiCallers[0].highlights;
+    const bookmark = await apiCallers[0].bookmarks.createBookmark({
+      url: "https://example.com",
+      type: BookmarkTypes.LINK,
+    });
+    const base = {
+      bookmarkId: bookmark.id,
+      startOffset: 1,
+      endOffset: 5,
+      color: "yellow" as const,
+      text: "text",
+      note: null,
+    };
+    const original = await api.create(base);
+    const english = await api.create({ ...base, contentLanguage: "en" });
+    expect(original.contentLanguage).toBeNull();
+    expect(english.contentLanguage).toBe("en");
+    expect(
+      (await api.get({ highlightId: original.id })).contentLanguage,
+    ).toBeNull();
+    expect((await api.get({ highlightId: english.id })).contentLanguage).toBe(
+      "en",
+    );
+    const all = await api.getForBookmark({ bookmarkId: bookmark.id });
+    expect(all.highlights.map((x) => x.contentLanguage).sort()).toEqual([
+      "en",
+      null,
+    ]);
+  });
+
   test<CustomTestContext>("delete highlight", async ({ apiCallers }) => {
     const api = apiCallers[0].highlights;
     const bookmarksApi = apiCallers[0].bookmarks;

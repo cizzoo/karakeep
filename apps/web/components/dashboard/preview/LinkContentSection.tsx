@@ -30,6 +30,7 @@ import {
   Video,
 } from "lucide-react";
 import { useQueryState } from "nuqs";
+import { useState } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 
 import {
@@ -41,6 +42,8 @@ import { READER_FONT_FAMILIES } from "@karakeep/shared/types/readers";
 
 import { contentRendererRegistry } from "./content-renderers";
 import ReaderSettingsPopover from "./ReaderSettingsPopover";
+import ReaderTranslationControl from "./ReaderTranslationControl";
+import type { ReaderLanguageView } from "./ReaderTranslationControl";
 import ReaderView from "./ReaderView";
 import SavedPageOverview from "./SavedPageOverview";
 
@@ -141,6 +144,8 @@ export default function LinkContentSection({
   });
   const { data: session } = useSession();
   const isOwner = session?.user?.id === bookmark.userId;
+  const [languageView, setLanguageView] =
+    useState<ReaderLanguageView>("original");
 
   if (bookmark.content.type != BookmarkTypes.LINK) {
     throw new Error("Invalid content type");
@@ -169,6 +174,7 @@ export default function LinkContentSection({
           }}
           bookmarkId={bookmark.id}
           readOnly={!isOwner}
+          showTranslation={languageView === "english"}
         />
       </div>
     );
@@ -268,6 +274,13 @@ export default function LinkContentSection({
         {section === "cached" && (
           <>
             <ReaderSettingsPopover />
+            {isOwner && (
+              <ReaderTranslationControl
+                bookmarkId={bookmark.id}
+                view={languageView}
+                onViewChange={setLanguageView}
+              />
+            )}
             <Tooltip>
               <TooltipTrigger>
                 <Link

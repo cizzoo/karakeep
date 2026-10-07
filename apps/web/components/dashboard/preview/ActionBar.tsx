@@ -1,5 +1,4 @@
 import { useState } from "react";
-import Link from "next/link";
 import { ActionButton } from "@/components/ui/action-button";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
@@ -9,9 +8,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useTranslation } from "@/lib/i18n/client";
-import { HighlighterIcon, Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 
-import { BookmarkTypes } from "@karakeep/shared/types/bookmarks";
 import type { ZBookmark } from "@karakeep/shared/types/bookmarks";
 import { useUpdateBookmark } from "@karakeep/shared-react/hooks/bookmarks";
 
@@ -74,19 +72,6 @@ export default function ActionBar({ bookmark }: { bookmark: ZBookmark }) {
         </TooltipTrigger>
         <TooltipContent side="bottom">{t("actions.edit")}</TooltipContent>
       </Tooltip>
-      {bookmark.content.type === BookmarkTypes.LINK && (
-        <Tooltip delayDuration={0}>
-          <TooltipTrigger asChild>
-            <Link
-              href={`/annotate/${bookmark.id}`}
-              className="flex size-8 items-center justify-center rounded-md hover:bg-accent"
-            >
-              <HighlighterIcon size={18} strokeWidth={1.5} />
-            </Link>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">{t("actions.annotate")}</TooltipContent>
-        </Tooltip>
-      )}
       <Tooltip delayDuration={0}>
         <TooltipTrigger asChild>
           <ActionButton

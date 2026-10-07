@@ -487,3 +487,63 @@ describe("batching", () => {
     expect(res.html.match(/<a /g)!.length).toBe(1);
   });
 });
+
+describe("fragment mode (reader content)", () => {
+  const fragment =
+    '<div id="readability-page-1" class="page"><h2>内核编程入门</h2>' +
+    '<p>首先我们需要在<a href="/k" title="内核态说明">内核态</a>注册一个<code>eBPF</code>程序。</p>' +
+    '<pre>keep   this</pre><img src="x.png" alt="一张示意图片"></div>';
+
+  test("identity translation round-trips byte-exact without html attrs", async () => {
+    const { translator, calls } = mock(identity);
+    const res = await translateDocument(fragment, {
+      ...base,
+      translator,
+      fragment: true,
+    });
+    expect(calls.length).toBeGreaterThan(0);
+    expect(res.failedUnits).toBe(0);
+    expect(res.html).toBe(fragment);
+    expect(res.html).not.toContain("data-karakeep-translation");
+    expect(res.html).not.toContain("<html");
+  });
+
+  test("translates text and attributes, passes the title to the model", async () => {
+    const titles: (string | undefined)[] = [];
+    const translator: BatchTranslator = {
+      translate(segs, o): Promise<BatchResult> {
+        titles.push(o.title);
+        return Promise.resolve({
+          segments: new Map(
+            segs.map((s) => [
+              s.id,
+              s.text === "内核编程入门"
+                ? "Intro to kernel programming"
+                : s.text === "内核态说明"
+                  ? "Kernel mode note"
+                  : s.text === "一张示意图片"
+                    ? "A diagram"
+                    : "First, we register an <c2>eBPF</c2> program in <x1>kernel mode</x1>.",
+            ]),
+          ),
+          truncated: false,
+        });
+      },
+    };
+    const res = await translateDocument(fragment, {
+      ...base,
+      translator,
+      fragment: true,
+      title: "My Bookmark",
+    });
+    expect(titles.every((t) => t === "My Bookmark")).toBe(true);
+    expect(res.failedUnits).toBe(0);
+    expect(res.html).toContain("<h2>Intro to kernel programming</h2>");
+    expect(res.html).toContain(
+      '<p>First, we register an <code>eBPF</code> program in <a href="/k" title="Kernel mode note">kernel mode</a>.</p>',
+    );
+    expect(res.html).toContain('alt="A diagram"');
+    expect(res.html).toContain("<pre>keep   this</pre>");
+    expect(res.html.startsWith('<div id="readability-page-1"')).toBe(true);
+  });
+});
