@@ -47,7 +47,6 @@ export default function ReaderTranslationControl({
     api.bookmarkTranslations.getStatus.queryOptions(
       { bookmarkId },
       {
-        enabled,
         refetchInterval: (query) => {
           const s = query.state.data?.status;
           return s === "pending" || s === "running" ? 1500 : false;
@@ -56,6 +55,7 @@ export default function ReaderTranslationControl({
     ),
   );
 
+  const [notEnabledHintOpen, setNotEnabledHintOpen] = useState(false);
   const [confirming, setConfirming] = useState<
     "discard" | "retranslate" | null
   >(null);
@@ -108,10 +108,6 @@ export default function ReaderTranslationControl({
       onViewChange("original");
     }
   }, [view, status, onViewChange]);
-
-  if (!enabled) {
-    return null;
-  }
 
   if (status && (status.status === "pending" || status.status === "running")) {
     const label =
@@ -187,7 +183,7 @@ export default function ReaderTranslationControl({
             variant="outline"
             size="sm"
             className="h-8"
-            disabled={isStarting}
+            disabled={isStarting || !enabled}
             onClick={() =>
               englishHighlightsCount > 0
                 ? setConfirming("retranslate")
@@ -258,6 +254,29 @@ export default function ReaderTranslationControl({
           )}
         />
       </div>
+    );
+  }
+
+  if (!enabled) {
+    // aria-disabled rather than disabled: a disabled button gets no pointer
+    // events, and the explanation must show on hover and on click/tap too.
+    return (
+      <Tooltip open={notEnabledHintOpen} onOpenChange={setNotEnabledHintOpen}>
+        <TooltipTrigger asChild>
+          <Button
+            variant="outline"
+            className="cursor-not-allowed gap-1.5 opacity-50"
+            aria-disabled
+            onClick={() => setNotEnabledHintOpen(true)}
+          >
+            <Languages className="size-4" />
+            {t("preview.translation.translate")}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-sm">
+          {t("preview.translation.not_enabled")}
+        </TooltipContent>
+      </Tooltip>
     );
   }
 

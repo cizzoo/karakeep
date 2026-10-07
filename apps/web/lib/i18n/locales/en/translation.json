@@ -1029,6 +1029,7 @@
     "translation": {
       "translate": "Translate to English",
       "retry": "Translation failed, retry",
+      "not_enabled": "Translation is not enabled on this Karakeep instance.",
       "warming_up": "Warming up model…",
       "progress": "Translating {{done}}/{{total}}",
       "cancel": "Cancel",
